@@ -94,7 +94,7 @@ class _LcarsConsoleScreenState extends State<LcarsConsoleScreen>
                                     : LcarsColors.amber),
                             label: visualAlarm
                                 ? 'RED ALERT'
-                                : (editing ? l10n.blueprintHeader : 'LCARS 47'),
+                                : (editing ? l10n.blueprintHeader : 'DECK 47'),
                           ),
                           const SizedBox(width: 8),
                           Expanded(

@@ -54,7 +54,7 @@ class LcarsController extends ChangeNotifier {
     ),
     ActionDescriptor(
       id: 'act_open_docs',
-      name: 'LCARS DOCS',
+      name: 'DECK DOCS',
       category: 'web',
       commandType: 'app_launch',
       colorToken: 'cyan',
@@ -426,7 +426,7 @@ class LcarsController extends ChangeNotifier {
   Future<void> connectAndPair({
     required Uri endpoint,
     required String pin,
-    String deviceName = 'LCARS Tablet Console',
+    String deviceName = 'Sci-Fi Deck Tablet',
   }) async {
     standaloneMode = false;
     _reconnectAttempts = 0;

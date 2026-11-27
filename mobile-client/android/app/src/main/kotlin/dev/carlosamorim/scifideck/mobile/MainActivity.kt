@@ -1,4 +1,4 @@
-package dev.carlosamorim.lcars.mobile
+package dev.carlosamorim.scifideck.mobile
 
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
@@ -19,7 +19,7 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     companion object {
-        private const val CHANNEL = "dev.carlosamorim.lcars.mobile/device_control"
+        private const val CHANNEL = "dev.carlosamorim.scifideck.mobile/device_control"
         private const val REQ_SAVE_BACKUP = 4701
         private const val REQ_OPEN_BACKUP = 4702
     }
@@ -116,7 +116,7 @@ class MainActivity : FlutterActivity() {
 
                     "saveBackupFile" -> {
                         val content = call.argument<String>("content") ?: ""
-                        val fileName = call.argument<String>("fileName") ?: "lcars-mobile-backup.json"
+                        val fileName = call.argument<String>("fileName") ?: "scifi-deck-mobile-backup.json"
                         pendingBackupResult = result
                         pendingBackupContent = content
                         val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {

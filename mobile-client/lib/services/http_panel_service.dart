@@ -84,7 +84,7 @@ class HttpPanelService {
     try {
       final req = await client.getUrl(uri);
       req.headers.set(HttpHeaders.acceptHeader, 'application/json');
-      req.headers.set(HttpHeaders.userAgentHeader, 'LCARS-Launcher/1.0');
+      req.headers.set(HttpHeaders.userAgentHeader, 'SciFiDeckControl/1.0');
 
       final resp = await req.close().timeout(const Duration(seconds: 8));
       final body = await resp.transform(utf8.decoder).join();

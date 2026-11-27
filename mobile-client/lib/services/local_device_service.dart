@@ -26,7 +26,7 @@ const Map<String, String> kLocalDeviceControls = {
 /// volume, brilho, Bluetooth e Wi-Fi diretamente no tablet/smartphone.
 class LocalDeviceService {
   static const MethodChannel _channel =
-      MethodChannel('dev.carlosamorim.lcars.mobile/device_control');
+      MethodChannel('dev.carlosamorim.scifideck.mobile/device_control');
 
   Future<List<InstalledApp>> listInstalledApps() async {
     try {
@@ -65,7 +65,7 @@ class LocalDeviceService {
   }
 
   /// Abre o seletor nativo do Android (SAF) para salvar o JSON de backup.
-  Future<bool> saveBackupFile(String content, {String fileName = 'lcars-mobile-backup.json'}) async {
+  Future<bool> saveBackupFile(String content, {String fileName = 'scifi-deck-mobile-backup.json'}) async {
     final ok = await _channel.invokeMethod<bool>(
       'saveBackupFile',
       {'content': content, 'fileName': fileName},

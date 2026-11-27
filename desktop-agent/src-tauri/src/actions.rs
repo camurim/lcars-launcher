@@ -32,7 +32,7 @@ pub fn default_actions() -> Vec<RegisteredAction> {
         },
         RegisteredAction {
             id: "act_open_docs".into(),
-            name: "LCARS DOCS".into(),
+            name: "DECK DOCS".into(),
             category: "web".into(),
             command_type: "app_launch".into(),
             target: "https://tauri.app".into(),

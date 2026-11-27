@@ -2,7 +2,7 @@ use mdns_sd::{ServiceDaemon, ServiceInfo};
 use std::collections::HashMap;
 use std::net::IpAddr;
 
-pub const MDNS_SERVICE_TYPE: &str = "_lcars-agent._tcp.local.";
+pub const MDNS_SERVICE_TYPE: &str = "_scifideck-agent._tcp.local.";
 
 pub struct MdnsAdvertiser {
     _daemon: ServiceDaemon,
@@ -23,7 +23,7 @@ impl MdnsAdvertiser {
             .map(|c| if c.is_ascii_alphanumeric() || c == '-' { c } else { '-' })
             .collect::<String>();
         let host_name = format!("{}.local.", host_label);
-        let instance_name = format!("LCARS-{}", host_label);
+        let instance_name = format!("SciFiDeck-{}", host_label);
 
         let mut properties = HashMap::new();
         properties.insert("version".to_string(), "1.0".to_string());

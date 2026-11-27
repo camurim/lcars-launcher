@@ -110,7 +110,7 @@ class WebSocketLcarsTransport implements LcarsTransport {
 
 /// Descoberta automática mDNS/Zeroconf via `bonsoir` para `_lcars-agent._tcp`.
 class MdnsDiscoveryService {
-  static const String serviceType = '_lcars-agent._tcp';
+  static const String serviceType = '_scifideck-agent._tcp';
   BonsoirDiscovery? _discovery;
   final _agentsController = StreamController<List<DiscoveredAgent>>.broadcast();
   final Map<String, DiscoveredAgent> _found = {};

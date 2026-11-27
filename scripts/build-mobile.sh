@@ -17,11 +17,11 @@ cd "${MOBILE_DIR}"
 # Gera scaffolding nativo caso ainda não exista no repositório
 if { [ "${TARGET}" = "apk" ] || [ "${TARGET}" = "appbundle" ]; } && [ ! -d "android" ]; then
   echo "==> Gerando diretório nativo android/..."
-  flutter create . --org dev.carlosamorim.lcars --platforms=android
+  flutter create . --org dev.carlosamorim.scifideck --platforms=android
   rm -f test/widget_test.dart
 elif [ "${TARGET}" = "ios" ] && [ ! -d "ios" ]; then
   echo "==> Gerando diretório nativo ios/..."
-  flutter create . --org dev.carlosamorim.lcars --platforms=ios
+  flutter create . --org dev.carlosamorim.scifideck --platforms=ios
   rm -f test/widget_test.dart
 fi
 

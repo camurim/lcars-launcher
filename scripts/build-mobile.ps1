@@ -13,7 +13,7 @@ Push-Location $MobileDir
 try {
     if (($Target -eq "apk" -or $Target -eq "appbundle") -and -not (Test-Path "android")) {
         Write-Host "==> Gerando diretório nativo android/..."
-        flutter create . --org dev.carlosamorim.lcars --platforms=android
+        flutter create . --org dev.carlosamorim.scifideck --platforms=android
         if (Test-Path "test/widget_test.dart") { Remove-Item "test/widget_test.dart" -Force }
     }
 

@@ -260,7 +260,7 @@ async function loadPairingInfo() {
       pin: "472905",
       ws_url: "ws://127.0.0.1:8765/ws",
       qr_payload: JSON.stringify({ ip: "127.0.0.1", port: 8765, pin: "472905" }),
-      mdns_service: "_lcars-agent._tcp.local.",
+      mdns_service: "_scifideck-agent._tcp.local.",
       telemetry_interval_ms: 750,
     };
     await renderPairing(fallback);
@@ -396,7 +396,7 @@ exportBackupBtn.addEventListener("click", async () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "lcars-desktop-backup.json";
+    a.download = "scifi-deck-agent-backup.json";
     a.click();
     URL.revokeObjectURL(url);
     backupStatusEl.classList.add("text-emerald-300");

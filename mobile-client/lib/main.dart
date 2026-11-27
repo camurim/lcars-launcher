@@ -63,7 +63,7 @@ class _LcarsLauncherAppState extends State<LcarsLauncherApp>
   Widget build(BuildContext context) {
     return MaterialApp(
       onGenerateTitle: (ctx) =>
-          AppLocalizations.of(ctx)?.appTitle ?? 'LCARS Launcher',
+          AppLocalizations.of(ctx)?.appTitle ?? 'Sci-Fi Deck Control',
       debugShowCheckedModeBanner: false,
       theme: buildLcarsTheme(),
       localizationsDelegates: const [

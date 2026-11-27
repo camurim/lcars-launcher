@@ -297,7 +297,7 @@ pub fn run() {
 
             let mut tray_builder = TrayIconBuilder::new()
                 .menu(&tray_menu)
-                .tooltip("LCARS Desktop Agent")
+                .tooltip("Sci-Fi Deck Agent")
                 .on_menu_event(|app, event| match event.id().as_ref() {
                     "tray_actions" => show_main_window_on_tab(app, "actions"),
                     "tray_pairing" => show_main_window_on_tab(app, "pairing"),
