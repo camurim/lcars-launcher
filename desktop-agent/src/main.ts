@@ -321,7 +321,10 @@ tabButtons.forEach((btn) => {
 });
 
 cancelEditBtn.addEventListener("click", resetActionForm);
-actCommandTypeSelect.addEventListener("change", () => syncCommandTypeFields());
+actCommandTypeSelect.addEventListener("change", () => {
+  actNameInput.value = "";
+  syncCommandTypeFields();
+});
 actPresetSelect.addEventListener("change", () => {
   actNameInput.value = t(`preset_${actPresetSelect.value}`).toUpperCase();
 });
