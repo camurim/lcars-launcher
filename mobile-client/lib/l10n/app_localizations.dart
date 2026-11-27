@@ -103,7 +103,7 @@ abstract class AppLocalizations {
   /// No description provided for @appTitle.
   ///
   /// In en, this message translates to:
-  /// **'LCARS Launcher'**
+  /// **'Sci-Fi Deck Control'**
   String get appTitle;
 
   /// No description provided for @backButton.
@@ -217,7 +217,7 @@ abstract class AppLocalizations {
   /// No description provided for @searchingMdns.
   ///
   /// In en, this message translates to:
-  /// **'SEARCHING _lcars-agent._tcp ON LOCAL NETWORK...'**
+  /// **'SEARCHING _scifideck-agent._tcp ON LOCAL NETWORK...'**
   String get searchingMdns;
 
   /// No description provided for @manualConnectionTitle.
@@ -475,7 +475,7 @@ abstract class AppLocalizations {
   /// No description provided for @fieldLcarsColor.
   ///
   /// In en, this message translates to:
-  /// **'LCARS COLOR'**
+  /// **'PANEL COLOR'**
   String get fieldLcarsColor;
 
   /// No description provided for @btnRemove.

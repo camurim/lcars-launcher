@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'LCARS Launcher';
+  String get appTitle => 'Sci-Fi Deck Control';
 
   @override
   String get backButton => '◄ BACK';
@@ -66,7 +66,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get discoveredAgentsTitle => 'DISCOVERED AGENTS ON NETWORK (mDNS)';
 
   @override
-  String get searchingMdns => 'SEARCHING _lcars-agent._tcp ON LOCAL NETWORK...';
+  String get searchingMdns =>
+      'SEARCHING _scifideck-agent._tcp ON LOCAL NETWORK...';
 
   @override
   String get manualConnectionTitle => 'MANUAL CONNECTION / 6-DIGIT PIN';
@@ -202,7 +203,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fieldPanelLabel => 'PANEL LABEL';
 
   @override
-  String get fieldLcarsColor => 'LCARS COLOR';
+  String get fieldLcarsColor => 'PANEL COLOR';
 
   @override
   String get btnRemove => 'REMOVE';
