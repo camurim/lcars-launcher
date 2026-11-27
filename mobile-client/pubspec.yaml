@@ -45,3 +45,4 @@ flutter:
     - assets/sounds/lcars_beep.wav
     - assets/sounds/lcars_confirm.wav
     - assets/sounds/lcars_error.wav
+    - assets/sounds/lcars_red_alert.wav

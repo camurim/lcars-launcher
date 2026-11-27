@@ -50,6 +50,10 @@ export const TRANSLATIONS: Record<SupportedLang, Record<string, string>> = {
     preset_prev_track: "Previous Track",
     preset_lock_screen: "Lock Screen",
     preset_suspend: "Suspend / Sleep PC",
+    btnExportBackup: "Export Backup",
+    btnImportBackup: "Import Backup",
+    backupExportedOk: "Backup JSON downloaded successfully.",
+    backupImportedOk: "Backup restored and synced with connected devices!",
   },
   pt: {
     subtitle: "Daemon WebSocket + mDNS • Protocolo v1.0",
@@ -98,6 +102,10 @@ export const TRANSLATIONS: Record<SupportedLang, Record<string, string>> = {
     preset_prev_track: "Faixa Anterior",
     preset_lock_screen: "Bloquear Tela",
     preset_suspend: "Suspender / Dormir PC",
+    btnExportBackup: "Exportar Backup",
+    btnImportBackup: "Importar Backup",
+    backupExportedOk: "Arquivo JSON de backup baixado com sucesso.",
+    backupImportedOk: "Backup restaurado e sincronizado com os dispositivos!",
   },
   es: {
     subtitle: "Daemon WebSocket + mDNS • Protocolo v1.0",
@@ -146,6 +154,10 @@ export const TRANSLATIONS: Record<SupportedLang, Record<string, string>> = {
     preset_prev_track: "Pista Anterior",
     preset_lock_screen: "Bloquear Pantalla",
     preset_suspend: "Suspender / Dormir PC",
+    btnExportBackup: "Exportar Respaldo",
+    btnImportBackup: "Importar Respaldo",
+    backupExportedOk: "Archivo JSON de respaldo descargado con éxito.",
+    backupImportedOk: "¡Respaldo restaurado y sincronizado con los dispositivos!",
   },
 };
 

@@ -196,6 +196,49 @@ async fn setup_adb_reverse(state: State<'_, Arc<AgentState>>) -> Result<String, 
     }
 }
 
+#[derive(Serialize, Deserialize)]
+struct DesktopBackupDto {
+    schema: String,
+    exported_at: String,
+    actions: Vec<RegisteredAction>,
+    layout_backup: Option<serde_json::Value>,
+}
+
+#[tauri::command]
+async fn export_desktop_backup(state: State<'_, Arc<AgentState>>) -> Result<String, String> {
+    let data = state.data.read().await;
+    let backup = DesktopBackupDto {
+        schema: "lcars_desktop_backup_v1".into(),
+        exported_at: chrono::Utc::now().to_rfc3339(),
+        actions: data.actions.clone(),
+        layout_backup: data.layout_backup.clone(),
+    };
+    serde_json::to_string_pretty(&backup).map_err(|e| format!("Falha ao serializar backup: {e}"))
+}
+
+#[tauri::command]
+async fn import_desktop_backup(
+    state: State<'_, Arc<AgentState>>,
+    raw_json: String,
+) -> Result<Vec<RegisteredAction>, String> {
+    let parsed: DesktopBackupDto = serde_json::from_str(&raw_json)
+        .map_err(|e| format!("Arquivo de backup inválido: {e}"))?;
+
+    let actions_snapshot = {
+        let mut data = state.data.write().await;
+        data.actions = parsed.actions;
+        if parsed.layout_backup.is_some() {
+            data.layout_backup = parsed.layout_backup;
+        }
+        data.capabilities_revision += 1;
+        state.store.save(&data)?;
+        data.actions.clone()
+    };
+
+    state.broadcast_capabilities().await;
+    Ok(actions_snapshot)
+}
+
 fn tray_labels_for_system_locale() -> (&'static str, &'static str, &'static str) {
     let locale = std::env::var("LC_ALL")
         .or_else(|_| std::env::var("LANG"))
@@ -320,7 +363,9 @@ pub fn run() {
             delete_action,
             list_devices,
             revoke_device,
-            setup_adb_reverse
+            setup_adb_reverse,
+            export_desktop_backup,
+            import_desktop_backup
         ])
         .run(tauri::generate_context!())
         .expect("erro ao iniciar LCARS Desktop Agent");

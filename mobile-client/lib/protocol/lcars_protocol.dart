@@ -201,6 +201,10 @@ class LcarsBlockConfig {
   final String? actionId;
   final InfoSource? source;
   final String? metricKey;
+  final String displayFormat;
+  final String alarmMode; // none | visual | sound | both
+  final double? alarmMin;
+  final double? alarmMax;
 
   const LcarsBlockConfig({
     required this.id,
@@ -210,6 +214,10 @@ class LcarsBlockConfig {
     this.actionId,
     this.source,
     this.metricKey,
+    this.displayFormat = 'bar',
+    this.alarmMode = 'none',
+    this.alarmMin,
+    this.alarmMax,
   });
 
   bool get isLocalAppAction =>
@@ -237,6 +245,10 @@ class LcarsBlockConfig {
     String? actionId,
     InfoSource? source,
     String? metricKey,
+    String? displayFormat,
+    String? alarmMode,
+    double? alarmMin,
+    double? alarmMax,
   }) {
     return LcarsBlockConfig(
       id: id ?? this.id,
@@ -246,6 +258,10 @@ class LcarsBlockConfig {
       actionId: actionId ?? this.actionId,
       source: source ?? this.source,
       metricKey: metricKey ?? this.metricKey,
+      displayFormat: displayFormat ?? this.displayFormat,
+      alarmMode: alarmMode ?? this.alarmMode,
+      alarmMin: alarmMin ?? this.alarmMin,
+      alarmMax: alarmMax ?? this.alarmMax,
     );
   }
 
@@ -267,6 +283,13 @@ class LcarsBlockConfig {
             : 'local_device',
       if (blockType == LcarsBlockType.info && metricKey != null)
         'metric_key': metricKey,
+      if (blockType == LcarsBlockType.info) 'display_format': displayFormat,
+      if (blockType == LcarsBlockType.info && alarmMode != 'none')
+        'alarm_mode': alarmMode,
+      if (blockType == LcarsBlockType.info && alarmMin != null)
+        'alarm_min': alarmMin,
+      if (blockType == LcarsBlockType.info && alarmMax != null)
+        'alarm_max': alarmMax,
     };
   }
 
@@ -284,6 +307,10 @@ class LcarsBlockConfig {
               ? InfoSource.pcTelemetry
               : InfoSource.localDevice),
       metricKey: json['metric_key'] as String?,
+      displayFormat: json['display_format'] as String? ?? 'bar',
+      alarmMode: json['alarm_mode'] as String? ?? 'none',
+      alarmMin: (json['alarm_min'] as num?)?.toDouble(),
+      alarmMax: (json['alarm_max'] as num?)?.toDouble(),
     );
   }
 }

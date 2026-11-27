@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 import '../l10n/app_localizations.dart';
 import '../protocol/lcars_protocol.dart';
@@ -13,61 +14,261 @@ import '../widgets/lcars_info_panel.dart';
 import '../widgets/lcars_pill_bar.dart';
 import 'connection_screen.dart';
 
-class LcarsConsoleScreen extends StatelessWidget {
+class LcarsConsoleScreen extends StatefulWidget {
   final LcarsController controller;
 
   const LcarsConsoleScreen({super.key, required this.controller});
 
   @override
+  State<LcarsConsoleScreen> createState() => _LcarsConsoleScreenState();
+}
+
+class _LcarsConsoleScreenState extends State<LcarsConsoleScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _alarmAnim;
+
+  LcarsController get controller => widget.controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _alarmAnim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 650),
+    );
+    controller.addListener(_syncAlarmAnimation);
+    _syncAlarmAnimation();
+  }
+
+  void _syncAlarmAnimation() {
+    if (controller.hasVisualAlarm) {
+      if (!_alarmAnim.isAnimating) {
+        _alarmAnim.repeat(reverse: true);
+      }
+    } else if (_alarmAnim.isAnimating) {
+      _alarmAnim.stop();
+      _alarmAnim.value = 0.0;
+    }
+  }
+
+  @override
+  void dispose() {
+    controller.removeListener(_syncAlarmAnimation);
+    _alarmAnim.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: controller,
+      listenable: Listenable.merge([controller, _alarmAnim]),
       builder: (context, _) {
         final l10n = AppLocalizations.of(context)!;
         final pcOnline = controller.isPcOnline;
         final editing = controller.blueprintMode;
+        final visualAlarm = controller.hasVisualAlarm;
+        final pulse = visualAlarm ? _alarmAnim.value : 0.0;
+        final redAlertPulse = Color.lerp(
+          const Color(0xFF991B1B),
+          const Color(0xFFFF2424),
+          pulse,
+        )!;
 
         return Scaffold(
-          body: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                children: [
-                  // Cabeçalho LCARS com cotovelo superior esquerdo
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          body: Stack(
+            children: [
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
                     children: [
-                      LcarsElbow(
-                        color: editing ? LcarsColors.skyBlue : LcarsColors.amber,
-                        label: editing ? l10n.blueprintHeader : 'LCARS 47',
+                      // Cabeçalho LCARS com cotovelo superior esquerdo
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          LcarsElbow(
+                            color: visualAlarm
+                                ? redAlertPulse
+                                : (editing
+                                    ? LcarsColors.skyBlue
+                                    : LcarsColors.amber),
+                            label: visualAlarm
+                                ? 'RED ALERT'
+                                : (editing ? l10n.blueprintHeader : 'LCARS 47'),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                LcarsPillBar(
+                                  color: visualAlarm
+                                      ? redAlertPulse
+                                      : (pcOnline
+                                          ? LcarsColors.peach
+                                          : (controller.standaloneMode
+                                              ? LcarsColors.lavender
+                                              : LcarsColors.redAlert)),
+                                  label: visualAlarm
+                                      ? 'RED ALERT • ${controller.layout.profileName}'
+                                      : (pcOnline
+                                          ? '${controller.layout.profileName} • ${l10n.statusOnline}'
+                                          : (controller.standaloneMode
+                                              ? '${controller.layout.profileName} • ${l10n.statusStandalone}'
+                                              : '${controller.layout.profileName} • ${l10n.statusStandbyOffline}')),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  controller.statusLog.toUpperCase(),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: visualAlarm
+                                        ? redAlertPulse
+                                        : LcarsColors.skyBlue,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 1.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(height: 8),
+
+                      // Corpo principal: coluna lateral LCARS + grade dinâmica configurável
                       Expanded(
-                        child: Column(
+                        child: Row(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            LcarsPillBar(
-                              color: pcOnline
-                                  ? LcarsColors.peach
-                                  : (controller.standaloneMode
-                                      ? LcarsColors.lavender
-                                      : LcarsColors.redAlert),
-                              label: pcOnline
-                                  ? '${controller.layout.profileName} • ${l10n.statusOnline}'
-                                  : (controller.standaloneMode
-                                      ? '${controller.layout.profileName} • ${l10n.statusStandalone}'
-                                      : '${controller.layout.profileName} • ${l10n.statusStandbyOffline}'),
+                            // Coluna lateral LCARS
+                            SizedBox(
+                              width: 92,
+                              child: Column(
+                                children: [
+                                  _SideBarTile(
+                                    label: l10n.sideConnect,
+                                    color: LcarsColors.lavender,
+                                    onTap: () {
+                                      unawaited(controller.feedback.playTap());
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) => ConnectionScreen(
+                                            controller: controller,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 6),
+                                  _SideBarTile(
+                                    label: controller.standaloneMode
+                                        ? l10n.sideStandalone
+                                        : l10n.sidePcLink,
+                                    color: controller.standaloneMode
+                                        ? LcarsColors.peach
+                                        : LcarsColors.offlineGrey,
+                                    onTap: () => unawaited(
+                                      controller.toggleStandaloneMode(),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  _SideBarTile(
+                                    label: controller.keepScreenOn
+                                        ? l10n.sideScreenOn
+                                        : l10n.sideScreenAuto,
+                                    color: controller.keepScreenOn
+                                        ? LcarsColors.skyBlue
+                                        : LcarsColors.offlineGrey,
+                                    onTap: () => unawaited(
+                                      controller.toggleKeepScreenOn(),
+                                    ),
+                                  ),
+                                  if (controller.hasSoundAlarm) ...[
+                                    const SizedBox(height: 6),
+                                    _SideBarTile(
+                                      label: controller.alarmMuted
+                                          ? l10n.sideAlarmUnmute
+                                          : l10n.sideAlarmMute,
+                                      color: redAlertPulse,
+                                      onTap: controller.toggleAlarmMute,
+                                    ),
+                                  ],
+                                  const SizedBox(height: 6),
+                                  _SideBarTile(
+                                    label: editing
+                                        ? l10n.sideDone
+                                        : l10n.sideEditPanel,
+                                    color: editing
+                                        ? LcarsColors.skyBlue
+                                        : LcarsColors.gold,
+                                    onTap: controller.toggleBlueprintMode,
+                                  ),
+                                  if (editing) ...[
+                                    const SizedBox(height: 6),
+                                    _SideBarTile(
+                                      label: l10n.sideAddBlock,
+                                      color: LcarsColors.peach,
+                                      onTap: () =>
+                                          _openBlockEditor(context, null),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    _SideBarTile(
+                                      label: l10n.sideBackup,
+                                      color: LcarsColors.lavender,
+                                      onTap: () => _openBackupDialog(context),
+                                    ),
+                                  ],
+                                  const SizedBox(height: 6),
+                                  Expanded(
+                                    child: LcarsElbow(
+                                      color: visualAlarm
+                                          ? redAlertPulse
+                                          : LcarsColors.amber,
+                                      width: 92,
+                                      height: double.infinity,
+                                      barThickness: 20,
+                                      corner: LcarsElbowCorner.bottomLeft,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              controller.statusLog.toUpperCase(),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: LcarsColors.skyBlue,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1.3,
+                            const SizedBox(width: 12),
+
+                            // Grade Dinâmica
+                            Expanded(
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final cols = constraints.maxWidth > 720
+                                      ? 4
+                                      : (constraints.maxWidth > 460 ? 3 : 2);
+                                  final blocks = controller.layout.blocks;
+
+                                  return GridView.builder(
+                                    gridDelegate:
+                                        SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: cols,
+                                      mainAxisSpacing: 10,
+                                      crossAxisSpacing: 10,
+                                      childAspectRatio: 1.55,
+                                    ),
+                                    itemCount: blocks.length,
+                                    itemBuilder: (context, index) {
+                                      final blk = blocks[index];
+                                      return _buildGridBlock(
+                                        context,
+                                        blk,
+                                        index,
+                                        cols,
+                                        blocks.length,
+                                        pulse,
+                                      );
+                                    },
+                                  );
+                                },
                               ),
                             ),
                           ],
@@ -75,127 +276,33 @@ class LcarsConsoleScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-
-                  // Corpo principal: coluna lateral LCARS + grade dinâmica configurável
-                  Expanded(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Coluna lateral LCARS
-                        SizedBox(
-                          width: 92,
-                          child: Column(
-                            children: [
-                              _SideBarTile(
-                                label: l10n.sideConnect,
-                                color: LcarsColors.lavender,
-                                onTap: () {
-                                  unawaited(controller.feedback.playTap());
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute<void>(
-                                      builder: (_) => ConnectionScreen(
-                                        controller: controller,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 6),
-                              _SideBarTile(
-                                label: controller.standaloneMode
-                                    ? l10n.sideStandalone
-                                    : l10n.sidePcLink,
-                                color: controller.standaloneMode
-                                    ? LcarsColors.peach
-                                    : LcarsColors.offlineGrey,
-                                onTap: () => unawaited(
-                                  controller.toggleStandaloneMode(),
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              _SideBarTile(
-                                label: controller.keepScreenOn
-                                    ? l10n.sideScreenOn
-                                    : l10n.sideScreenAuto,
-                                color: controller.keepScreenOn
-                                    ? LcarsColors.skyBlue
-                                    : LcarsColors.offlineGrey,
-                                onTap: () => unawaited(
-                                  controller.toggleKeepScreenOn(),
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              _SideBarTile(
-                                label: editing
-                                    ? l10n.sideDone
-                                    : l10n.sideEditPanel,
-                                color: editing
-                                    ? LcarsColors.skyBlue
-                                    : LcarsColors.gold,
-                                onTap: controller.toggleBlueprintMode,
-                              ),
-                              if (editing) ...[
-                                const SizedBox(height: 6),
-                                _SideBarTile(
-                                  label: l10n.sideAddBlock,
-                                  color: LcarsColors.peach,
-                                  onTap: () => _openBlockEditor(context, null),
-                                ),
-                              ],
-                              const SizedBox(height: 6),
-                              const Expanded(
-                                child: LcarsElbow(
-                                  color: LcarsColors.amber,
-                                  width: 92,
-                                  height: double.infinity,
-                                  barThickness: 20,
-                                  corner: LcarsElbowCorner.bottomLeft,
-                                ),
-                              ),
-                            ],
+                ),
+              ),
+              if (visualAlarm)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: redAlertPulse.withValues(
+                            alpha: 0.45 + 0.5 * pulse,
                           ),
+                          width: 6,
                         ),
-                        const SizedBox(width: 12),
-
-                        // Grade Dinâmica
-                        Expanded(
-                          child: LayoutBuilder(
-                            builder: (context, constraints) {
-                              final cols = constraints.maxWidth > 720
-                                  ? 4
-                                  : (constraints.maxWidth > 460 ? 3 : 2);
-                              final blocks = controller.layout.blocks;
-
-                              return GridView.builder(
-                                gridDelegate:
-                                    SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: cols,
-                                  mainAxisSpacing: 10,
-                                  crossAxisSpacing: 10,
-                                  childAspectRatio: 1.55,
-                                ),
-                                itemCount: blocks.length,
-                                itemBuilder: (context, index) {
-                                  final blk = blocks[index];
-                                  return _buildGridBlock(
-                                    context,
-                                    blk,
-                                    index,
-                                    cols,
-                                    blocks.length,
-                                  );
-                                },
-                              );
-                            },
+                        boxShadow: [
+                          BoxShadow(
+                            color: redAlertPulse.withValues(
+                              alpha: 0.12 + 0.22 * pulse,
+                            ),
+                            blurRadius: 28,
+                            spreadRadius: 4,
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ],
-              ),
-            ),
+                ),
+            ],
           ),
         );
       },
@@ -208,6 +315,7 @@ class LcarsConsoleScreen extends StatelessWidget {
     int index,
     int cols,
     int totalCount,
+    double alarmPulse,
   ) {
     final editing = controller.blueprintMode;
     final color = LcarsColors.fromToken(blk.colorToken);
@@ -242,10 +350,17 @@ class LcarsConsoleScreen extends StatelessWidget {
           blk.metricKey != null && blk.metricKey!.startsWith('http:');
       final resolved = _resolveInfoMetric(blk);
 
+      final isBlockAlarm = controller.activeAlarmBlockIds.contains(blk.id) &&
+          (blk.alarmMode == 'visual' || blk.alarmMode == 'both');
+
       blockWidget = LcarsInfoPanel(
         label: blk.label,
         value: resolved.value,
         progress: resolved.progress,
+        displayFormat: blk.displayFormat,
+        history: controller.historyFor(blk.metricKey),
+        alarmActive: isBlockAlarm,
+        alarmPulse: isBlockAlarm ? alarmPulse : 0.0,
         sourceTag: isHttpPanel
             ? 'HTTP'
             : (isCommandOutput ? 'CMD' : (isPcMetric ? 'PC' : 'LOCAL')),
@@ -396,6 +511,13 @@ class LcarsConsoleScreen extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _openBackupDialog(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => _BackupRestoreDialog(controller: controller),
+    );
+  }
 }
 
 class _MoveArrowChip extends StatelessWidget {
@@ -508,6 +630,10 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
   bool _testingHttp = false;
   String? _selectedActionId;
   String _selectedMetricKey = 'cpu.usage_percent';
+  String _displayFormat = 'bar';
+  String _alarmMode = 'none';
+  late TextEditingController _alarmMinCtrl;
+  late TextEditingController _alarmMaxCtrl;
   String? _selectedAppPackage;
   String _selectedControlKey = kLocalDeviceControls.keys.first;
   List<InstalledApp> _installedApps = const [];
@@ -551,6 +677,14 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
             : null);
     _selectedMetricKey = e?.metricKey ??
         (_infoSource == InfoSource.pcTelemetry ? 'cpu.usage_percent' : 'clock');
+    _displayFormat = e?.displayFormat ?? 'bar';
+    _alarmMode = e?.alarmMode ?? 'none';
+    _alarmMinCtrl = TextEditingController(
+      text: e?.alarmMin != null ? e!.alarmMin.toString() : '',
+    );
+    _alarmMaxCtrl = TextEditingController(
+      text: e?.alarmMax != null ? e!.alarmMax.toString() : '',
+    );
 
     unawaited(_loadInstalledApps());
   }
@@ -576,6 +710,8 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
     _httpPathCtrl.dispose();
     _httpPrefixCtrl.dispose();
     _httpSuffixCtrl.dispose();
+    _alarmMinCtrl.dispose();
+    _alarmMaxCtrl.dispose();
     super.dispose();
   }
 
@@ -912,6 +1048,112 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
                   if (v != null) setState(() => _selectedMetricKey = v);
                 },
               ),
+              if (const {
+                'cpu.usage_percent',
+                'memory.free_gb',
+                'temperature.cpu_celsius',
+                'battery_level',
+              }.contains(_selectedMetricKey)) ...[
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: const {'bar', 'sparkline', 'gauge', 'value'}
+                          .contains(_displayFormat)
+                      ? _displayFormat
+                      : 'bar',
+                  dropdownColor: const Color(0xFF1A1A22),
+                  style: const TextStyle(
+                      color: LcarsColors.textLight, fontSize: 15),
+                  decoration:
+                      InputDecoration(labelText: l10n.fieldDisplayFormat),
+                  items: [
+                    DropdownMenuItem(
+                      value: 'bar',
+                      child: Text(l10n.formatBar),
+                    ),
+                    DropdownMenuItem(
+                      value: 'sparkline',
+                      child: Text(l10n.formatSparkline),
+                    ),
+                    DropdownMenuItem(
+                      value: 'gauge',
+                      child: Text(l10n.formatGauge),
+                    ),
+                    DropdownMenuItem(
+                      value: 'value',
+                      child: Text(l10n.formatValue),
+                    ),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setState(() => _displayFormat = v);
+                  },
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue:
+                      const {'none', 'visual', 'sound', 'both'}.contains(_alarmMode)
+                          ? _alarmMode
+                          : 'none',
+                  dropdownColor: const Color(0xFF1A1A22),
+                  style: const TextStyle(
+                      color: LcarsColors.textLight, fontSize: 15),
+                  decoration: InputDecoration(labelText: l10n.fieldAlarmMode),
+                  items: [
+                    DropdownMenuItem(
+                      value: 'none',
+                      child: Text(l10n.alarmNone),
+                    ),
+                    DropdownMenuItem(
+                      value: 'visual',
+                      child: Text(l10n.alarmVisual),
+                    ),
+                    DropdownMenuItem(
+                      value: 'sound',
+                      child: Text(l10n.alarmSound),
+                    ),
+                    DropdownMenuItem(
+                      value: 'both',
+                      child: Text(l10n.alarmBoth),
+                    ),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setState(() => _alarmMode = v);
+                  },
+                ),
+                if (_alarmMode != 'none') ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _alarmMinCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          style: const TextStyle(
+                              color: LcarsColors.textLight, fontSize: 14),
+                          decoration: InputDecoration(
+                            labelText: l10n.fieldAlarmMin,
+                            hintText: 'Ex.: 15',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: _alarmMaxCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          style: const TextStyle(
+                              color: LcarsColors.textLight, fontSize: 14),
+                          decoration: InputDecoration(
+                            labelText: l10n.fieldAlarmMax,
+                            hintText: 'Ex.: 85',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
             ],
             const SizedBox(height: 12),
             TextField(
@@ -1002,6 +1244,11 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
                   ).toMetricKey()
                 : (_kind == _EditorBlockKind.info ? _selectedMetricKey : null);
 
+            final parsedMin = double.tryParse(
+                _alarmMinCtrl.text.trim().replaceAll(',', '.'));
+            final parsedMax = double.tryParse(
+                _alarmMaxCtrl.text.trim().replaceAll(',', '.'));
+
             final block = LcarsBlockConfig(
               id: widget.existing?.id ??
                   'blk_${const Uuid().v4().substring(0, 8)}',
@@ -1012,11 +1259,240 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
               actionId: resolvedActionId,
               source: resolvedSource,
               metricKey: resolvedMetricKey,
+              displayFormat:
+                  _kind == _EditorBlockKind.info ? _displayFormat : 'bar',
+              alarmMode: _kind == _EditorBlockKind.info ? _alarmMode : 'none',
+              alarmMin: _kind == _EditorBlockKind.info && _alarmMode != 'none'
+                  ? parsedMin
+                  : null,
+              alarmMax: _kind == _EditorBlockKind.info && _alarmMode != 'none'
+                  ? parsedMax
+                  : null,
             );
             unawaited(widget.controller.addOrUpdateBlock(block));
             Navigator.of(context).pop();
           },
           child: Text(l10n.btnSaveSync),
+        ),
+      ],
+    );
+  }
+}
+
+class _BackupRestoreDialog extends StatefulWidget {
+  final LcarsController controller;
+
+  const _BackupRestoreDialog({required this.controller});
+
+  @override
+  State<_BackupRestoreDialog> createState() => _BackupRestoreDialogState();
+}
+
+class _BackupRestoreDialogState extends State<_BackupRestoreDialog> {
+  final _jsonCtrl = TextEditingController();
+  String? _feedbackMsg;
+  bool _isError = false;
+
+  @override
+  void dispose() {
+    _jsonCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveToFile() async {
+    final l10n = AppLocalizations.of(context)!;
+    try {
+      final json = widget.controller.exportBackupJson();
+      final saved = await widget.controller.localDevice.saveBackupFile(json);
+      if (!mounted) return;
+      setState(() {
+        _isError = false;
+        _feedbackMsg = saved ? l10n.backupSavedOk : l10n.backupCancelled;
+      });
+    } catch (err) {
+      if (!mounted) return;
+      setState(() {
+        _isError = true;
+        _feedbackMsg = '$err';
+      });
+    }
+  }
+
+  Future<void> _copyToClipboard() async {
+    final l10n = AppLocalizations.of(context)!;
+    final json = widget.controller.exportBackupJson();
+    await Clipboard.setData(ClipboardData(text: json));
+    if (!mounted) return;
+    setState(() {
+      _isError = false;
+      _feedbackMsg = l10n.backupCopiedOk;
+    });
+  }
+
+  Future<void> _openFromFile() async {
+    final l10n = AppLocalizations.of(context)!;
+    try {
+      final content = await widget.controller.localDevice.openBackupFile();
+      if (content == null || content.trim().isEmpty) return;
+      await widget.controller.importBackupJson(content);
+      if (!mounted) return;
+      setState(() {
+        _isError = false;
+        _feedbackMsg = l10n.backupRestoredOk;
+      });
+    } catch (err) {
+      if (!mounted) return;
+      setState(() {
+        _isError = true;
+        _feedbackMsg = '${l10n.backupInvalidError}: $err';
+      });
+    }
+  }
+
+  Future<void> _restoreFromText() async {
+    final l10n = AppLocalizations.of(context)!;
+    final raw = _jsonCtrl.text.trim();
+    if (raw.isEmpty) return;
+    try {
+      await widget.controller.importBackupJson(raw);
+      if (!mounted) return;
+      setState(() {
+        _isError = false;
+        _feedbackMsg = l10n.backupRestoredOk;
+      });
+    } catch (err) {
+      if (!mounted) return;
+      setState(() {
+        _isError = true;
+        _feedbackMsg = '${l10n.backupInvalidError}: $err';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final pcOnline = widget.controller.isPcOnline;
+
+    return AlertDialog(
+      backgroundColor: const Color(0xFF111116),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: const BorderSide(color: LcarsColors.lavender, width: 2),
+      ),
+      title: Text(
+        l10n.backupDialogTitle,
+        style: const TextStyle(color: LcarsColors.amber, fontSize: 16),
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: LcarsColors.amber,
+                    foregroundColor: Colors.black,
+                  ),
+                  onPressed: _saveToFile,
+                  child: Text(l10n.btnExportFile),
+                ),
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: LcarsColors.gold,
+                    side: const BorderSide(color: LcarsColors.gold),
+                  ),
+                  onPressed: _copyToClipboard,
+                  child: Text(l10n.btnCopyJson),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: LcarsColors.skyBlue,
+                    foregroundColor: Colors.black,
+                  ),
+                  onPressed: _openFromFile,
+                  child: Text(l10n.btnImportFile),
+                ),
+              ],
+            ),
+            if (pcOnline) ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: LcarsColors.lavender,
+                      side: const BorderSide(color: LcarsColors.lavender),
+                    ),
+                    onPressed: () {
+                      unawaited(widget.controller.pushLayoutBackupToPc());
+                      setState(() {
+                        _isError = false;
+                        _feedbackMsg = l10n.backupPushedPc;
+                      });
+                    },
+                    child: Text(l10n.btnPushPc),
+                  ),
+                  OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: LcarsColors.peach,
+                      side: const BorderSide(color: LcarsColors.peach),
+                    ),
+                    onPressed: () {
+                      unawaited(widget.controller.pullLayoutBackupFromPc());
+                      setState(() {
+                        _isError = false;
+                        _feedbackMsg = l10n.backupPulledPc;
+                      });
+                    },
+                    child: Text(l10n.btnPullPc),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 12),
+            TextField(
+              controller: _jsonCtrl,
+              maxLines: 4,
+              style: const TextStyle(color: LcarsColors.textLight, fontSize: 12),
+              decoration: InputDecoration(
+                labelText: l10n.fieldPasteBackupJson,
+                hintText: '{"schema": "lcars_mobile_backup_v1", ...}',
+              ),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: LcarsColors.amber,
+                side: const BorderSide(color: LcarsColors.amber),
+              ),
+              onPressed: _restoreFromText,
+              child: Text(l10n.btnRestoreJsonText),
+            ),
+            if (_feedbackMsg != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                _feedbackMsg!,
+                style: TextStyle(
+                  color: _isError ? LcarsColors.redAlert : LcarsColors.skyBlue,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.sideDone),
         ),
       ],
     );

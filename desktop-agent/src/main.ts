@@ -107,6 +107,10 @@ function syncCommandTypeFields(selectedPreset?: string) {
 const cancelEditBtn = document.getElementById("btn-cancel-edit") as HTMLButtonElement;
 const actionsListEl = document.getElementById("actions-list") as HTMLUListElement;
 const actionsCountEl = document.getElementById("actions-count") as HTMLElement;
+const exportBackupBtn = document.getElementById("btn-export-backup") as HTMLButtonElement;
+const importBackupBtn = document.getElementById("btn-import-backup") as HTMLButtonElement;
+const importBackupInput = document.getElementById("input-import-backup") as HTMLInputElement;
+const backupStatusEl = document.getElementById("backup-status") as HTMLElement;
 
 const pairIpEl = document.getElementById("pair-ip") as HTMLElement;
 const pairPortEl = document.getElementById("pair-port") as HTMLElement;
@@ -383,6 +387,46 @@ adbReverseBtn.addEventListener("click", async () => {
 });
 
 refreshDevicesBtn.addEventListener("click", () => void loadDevices());
+
+exportBackupBtn.addEventListener("click", async () => {
+  backupStatusEl.classList.remove("hidden", "text-emerald-300", "text-red-300");
+  try {
+    const json = await invoke<string>("export_desktop_backup");
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "lcars-desktop-backup.json";
+    a.click();
+    URL.revokeObjectURL(url);
+    backupStatusEl.classList.add("text-emerald-300");
+    backupStatusEl.textContent = t("backupExportedOk");
+  } catch (err) {
+    backupStatusEl.classList.add("text-red-300");
+    backupStatusEl.textContent = String(err);
+  }
+});
+
+importBackupBtn.addEventListener("click", () => importBackupInput.click());
+
+importBackupInput.addEventListener("change", async () => {
+  const file = importBackupInput.files?.[0];
+  importBackupInput.value = "";
+  if (!file) return;
+  backupStatusEl.classList.remove("hidden", "text-emerald-300", "text-red-300");
+  try {
+    const rawJson = await file.text();
+    const updated = await invoke<RegisteredAction[]>("import_desktop_backup", {
+      rawJson,
+    });
+    renderActions(updated);
+    backupStatusEl.classList.add("text-emerald-300");
+    backupStatusEl.textContent = t("backupImportedOk");
+  } catch (err) {
+    backupStatusEl.classList.add("text-red-300");
+    backupStatusEl.textContent = String(err);
+  }
+});
 
 // Escuta navegação enviada pelo menu do System Tray
 listen<string>("navigate-tab", (event) => {

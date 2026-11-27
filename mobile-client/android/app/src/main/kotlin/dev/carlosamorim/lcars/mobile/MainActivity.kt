@@ -1,12 +1,18 @@
 package dev.carlosamorim.lcars.mobile
 
+import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.Intent
 import android.media.AudioManager
 import android.os.Build
+import android.os.Bundle
 import android.provider.Settings
+import android.view.View
+import android.view.WindowInsets
+import android.view.WindowInsetsController
+import android.view.WindowManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -14,6 +20,48 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     companion object {
         private const val CHANNEL = "dev.carlosamorim.lcars.mobile/device_control"
+        private const val REQ_SAVE_BACKUP = 4701
+        private const val REQ_OPEN_BACKUP = 4702
+    }
+
+    private var pendingBackupResult: MethodChannel.Result? = null
+    private var pendingBackupContent: String? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes.layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
+        applyImmersiveFullscreen()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            applyImmersiveFullscreen()
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun applyImmersiveFullscreen() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.setDecorFitsSystemWindows(false)
+            window.insetsController?.let { controller ->
+                controller.hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
+                controller.systemBarsBehavior =
+                    WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        } else {
+            window.decorView.systemUiVisibility = (
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    or View.SYSTEM_UI_FLAG_FULLSCREEN
+                    or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                )
+        }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -66,9 +114,71 @@ class MainActivity : FlutterActivity() {
                         handleDeviceControl(control, result)
                     }
 
+                    "saveBackupFile" -> {
+                        val content = call.argument<String>("content") ?: ""
+                        val fileName = call.argument<String>("fileName") ?: "lcars-mobile-backup.json"
+                        pendingBackupResult = result
+                        pendingBackupContent = content
+                        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                            addCategory(Intent.CATEGORY_OPENABLE)
+                            type = "application/json"
+                            putExtra(Intent.EXTRA_TITLE, fileName)
+                        }
+                        startActivityForResult(intent, REQ_SAVE_BACKUP)
+                    }
+
+                    "openBackupFile" -> {
+                        pendingBackupResult = result
+                        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                            addCategory(Intent.CATEGORY_OPENABLE)
+                            type = "*/*"
+                            putExtra(
+                                Intent.EXTRA_MIME_TYPES,
+                                arrayOf("application/json", "text/plain")
+                            )
+                        }
+                        startActivityForResult(intent, REQ_OPEN_BACKUP)
+                    }
+
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQ_SAVE_BACKUP) {
+            val cb = pendingBackupResult
+            val content = pendingBackupContent
+            pendingBackupResult = null
+            pendingBackupContent = null
+            if (resultCode == Activity.RESULT_OK && data?.data != null && content != null) {
+                try {
+                    contentResolver.openOutputStream(data.data!!)?.use { out ->
+                        out.write(content.toByteArray(Charsets.UTF_8))
+                    }
+                    cb?.success(true)
+                } catch (e: Exception) {
+                    cb?.error("SAVE_ERR", e.message, null)
+                }
+            } else {
+                cb?.success(false)
+            }
+        } else if (requestCode == REQ_OPEN_BACKUP) {
+            val cb = pendingBackupResult
+            pendingBackupResult = null
+            if (resultCode == Activity.RESULT_OK && data?.data != null) {
+                try {
+                    val text = contentResolver.openInputStream(data.data!!)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
+                    cb?.success(text)
+                } catch (e: Exception) {
+                    cb?.error("OPEN_ERR", e.message, null)
+                }
+            } else {
+                cb?.success(null)
+            }
+        }
     }
 
     private fun handleDeviceControl(control: String, result: MethodChannel.Result) {

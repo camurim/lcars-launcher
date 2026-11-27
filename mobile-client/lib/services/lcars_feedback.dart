@@ -27,6 +27,12 @@ class LcarsFeedback {
     await _playAsset('assets/sounds/lcars_error.wav');
   }
 
+  Future<void> playRedAlert() async {
+    if (!enabled) return;
+    await HapticFeedback.heavyImpact();
+    await _playAsset('assets/sounds/lcars_red_alert.wav');
+  }
+
   Future<void> _playAsset(String assetPath) async {
     try {
       await _player.setAsset(assetPath);

@@ -65,7 +65,10 @@
                 "action_id": { "type": "string" },
                 "source": { "type": "string", "enum": ["pc_telemetry", "local_device"] },
                 "metric_key": { "type": "string" },
-                "display_format": { "type": "string", "enum": ["value", "bar", "sparkline", "clock"] }
+                "display_format": { "type": "string", "enum": ["value", "bar", "sparkline", "gauge", "clock"] },
+                "alarm_mode": { "type": "string", "enum": ["none", "visual", "sound", "both"] },
+                "alarm_min": { "type": ["number", "null"] },
+                "alarm_max": { "type": ["number", "null"] }
               },
               "allOf": [
                 {

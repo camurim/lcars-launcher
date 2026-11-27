@@ -63,4 +63,18 @@ class LocalDeviceService {
     );
     return res ?? 'Controle $control executado';
   }
+
+  /// Abre o seletor nativo do Android (SAF) para salvar o JSON de backup.
+  Future<bool> saveBackupFile(String content, {String fileName = 'lcars-mobile-backup.json'}) async {
+    final ok = await _channel.invokeMethod<bool>(
+      'saveBackupFile',
+      {'content': content, 'fileName': fileName},
+    );
+    return ok ?? false;
+  }
+
+  /// Abre o seletor nativo do Android (SAF) para ler um arquivo JSON de backup.
+  Future<String?> openBackupFile() async {
+    return _channel.invokeMethod<String>('openBackupFile');
+  }
 }

@@ -143,6 +143,89 @@ class LcarsController extends ChangeNotifier {
   String? confirmedActionId;
   final Map<String, String> commandOutputs = {};
   final Map<String, String> httpOutputs = {};
+  final Map<String, List<double>> _metricHistory = {};
+  static const int _maxHistorySamples = 30;
+
+  final Set<String> activeAlarmBlockIds = {};
+  bool hasVisualAlarm = false;
+  bool hasSoundAlarm = false;
+  bool alarmMuted = false;
+  DateTime? _lastAlarmSoundAt;
+
+  bool get hasAnyAlarm => activeAlarmBlockIds.isNotEmpty;
+
+  void toggleAlarmMute() {
+    alarmMuted = !alarmMuted;
+    unawaited(feedback.playTap());
+    notifyListeners();
+  }
+
+  double? _numericValueForBlock(LcarsBlockConfig blk) {
+    if (blk.source == InfoSource.pcTelemetry && !isPcOnline) return null;
+    return switch (blk.metricKey) {
+      'cpu.usage_percent' => telemetry.cpuPercent,
+      'memory.free_gb' => telemetry.memoryFreeGb,
+      'temperature.cpu_celsius' => telemetry.cpuTempCelsius,
+      'battery_level' => batteryLevel.toDouble(),
+      _ => null,
+    };
+  }
+
+  void _evaluateAlarms() {
+    activeAlarmBlockIds.clear();
+    var visual = false;
+    var sound = false;
+
+    for (final blk in layout.blocks) {
+      if (blk.blockType != LcarsBlockType.info || blk.alarmMode == 'none') {
+        continue;
+      }
+      final val = _numericValueForBlock(blk);
+      if (val == null) continue;
+      final hitMin = blk.alarmMin != null && val <= blk.alarmMin!;
+      final hitMax = blk.alarmMax != null && val >= blk.alarmMax!;
+      if (hitMin || hitMax) {
+        activeAlarmBlockIds.add(blk.id);
+        if (blk.alarmMode == 'visual' || blk.alarmMode == 'both') {
+          visual = true;
+        }
+        if (blk.alarmMode == 'sound' || blk.alarmMode == 'both') {
+          sound = true;
+        }
+      }
+    }
+
+    hasVisualAlarm = visual;
+    hasSoundAlarm = sound;
+
+    if (activeAlarmBlockIds.isEmpty) {
+      alarmMuted = false;
+      return;
+    }
+
+    if (hasSoundAlarm && !alarmMuted) {
+      final current = DateTime.now();
+      if (_lastAlarmSoundAt == null ||
+          current.difference(_lastAlarmSoundAt!) >=
+              const Duration(seconds: 3)) {
+        _lastAlarmSoundAt = current;
+        unawaited(feedback.playRedAlert());
+      }
+    }
+  }
+
+  List<double> historyFor(String? metricKey) {
+    if (metricKey == null) return const [];
+    return _metricHistory[metricKey] ?? const [];
+  }
+
+  void _pushHistory(String key, double normalizedValue) {
+    final list = _metricHistory.putIfAbsent(key, () => <double>[]);
+    list.add(normalizedValue.clamp(0.0, 1.0));
+    if (list.length > _maxHistorySamples) {
+      list.removeAt(0);
+    }
+  }
 
   StreamSubscription<ProtocolEnvelope>? _msgSub;
   StreamSubscription<LcarsConnectionStatus>? _statusSub;
@@ -212,7 +295,12 @@ class LcarsController extends ChangeNotifier {
       now = DateTime.now();
       try {
         batteryLevel = await _battery.batteryLevel;
+        if (now.second % 5 == 0 ||
+            (_metricHistory['battery_level']?.isEmpty ?? true)) {
+          _pushHistory('battery_level', batteryLevel / 100.0);
+        }
       } catch (_) {}
+      _evaluateAlarms();
       notifyListeners();
     });
 
@@ -566,12 +654,109 @@ class LcarsController extends ChangeNotifier {
     await reorderBlock(index, target);
   }
 
+  /// Exporta layout completo, alarmes, gráficos, HTTP panels e preferências em JSON legível.
+  String exportBackupJson() {
+    final data = {
+      'schema': 'lcars_mobile_backup_v1',
+      'exported_at': DateTime.now().toUtc().toIso8601String(),
+      'preferences': {
+        'keep_screen_on': keepScreenOn,
+        'standalone_mode': standaloneMode,
+      },
+      'layout': layout.toLayoutSyncPayload(direction: 'push'),
+    };
+    return const JsonEncoder.withIndent('  ').convert(data);
+  }
+
+  /// Importa backup JSON (aceita `lcars_mobile_backup_v1` ou payload direto de `LAYOUT_SYNC`).
+  Future<void> importBackupJson(String rawJson) async {
+    final decoded = jsonDecode(rawJson);
+    if (decoded is! Map<String, dynamic>) {
+      throw const FormatException('Formato JSON inválido');
+    }
+
+    final Map<String, dynamic> layoutMap;
+    if (decoded['layout'] is Map) {
+      layoutMap = Map<String, dynamic>.from(decoded['layout'] as Map);
+    } else if (decoded['pages'] is List) {
+      layoutMap = decoded;
+    } else {
+      throw const FormatException('Backup sem definição de layout/pages');
+    }
+
+    final restoredLayout = LcarsLayoutConfig.fromLayoutSyncPayload(layoutMap);
+    if (decoded['preferences'] is Map) {
+      final prefsMap = Map<String, dynamic>.from(decoded['preferences'] as Map);
+      if (prefsMap['keep_screen_on'] is bool) {
+        keepScreenOn = prefsMap['keep_screen_on'] as bool;
+        await _applyWakelock();
+      }
+      if (prefsMap['standalone_mode'] is bool) {
+        standaloneMode = prefsMap['standalone_mode'] as bool;
+      }
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool(_kKeepScreenOnKey, keepScreenOn);
+        await prefs.setBool(_kStandaloneModeKey, standaloneMode);
+      } catch (_) {}
+    }
+
+    layout = LcarsLayoutConfig(
+      layoutVersion: restoredLayout.layoutVersion + 1,
+      profileName: restoredLayout.profileName,
+      blocks: restoredLayout.blocks,
+    );
+    _evaluateAlarms();
+    notifyListeners();
+    await _saveLocalLayout();
+
+    if (isPcOnline && _authToken != null) {
+      await pushLayoutBackupToPc();
+    }
+    unawaited(refreshHttpPanels());
+    unawaited(refreshCommandPanels());
+    statusLog = 'BACKUP RESTAURADO (${layout.blocks.length} BLOCOS)';
+    unawaited(feedback.playConfirm());
+    notifyListeners();
+  }
+
+  Future<void> pushLayoutBackupToPc() async {
+    if (!isPcOnline || _authToken == null) return;
+    await transport.send(
+      ProtocolEnvelope(
+        type: 'LAYOUT_SYNC',
+        timestamp: DateTime.now(),
+        reqId: _uuid.v4(),
+        token: _authToken,
+        payload: layout.toLayoutSyncPayload(direction: 'push'),
+      ),
+    );
+    statusLog = 'BACKUP ENVIADO AO PC (REV ${layout.layoutVersion})';
+    notifyListeners();
+  }
+
+  Future<void> pullLayoutBackupFromPc() async {
+    if (!isPcOnline || _authToken == null) return;
+    await transport.send(
+      ProtocolEnvelope(
+        type: 'LAYOUT_SYNC',
+        timestamp: DateTime.now(),
+        reqId: _uuid.v4(),
+        token: _authToken,
+        payload: {'direction': 'pull_request'},
+      ),
+    );
+    statusLog = 'SOLICITANDO BACKUP DO PC...';
+    notifyListeners();
+  }
+
   Future<void> _commitLayout(List<LcarsBlockConfig> updatedBlocks) async {
     layout = LcarsLayoutConfig(
       layoutVersion: layout.layoutVersion + 1,
       profileName: layout.profileName,
       blocks: updatedBlocks,
     );
+    _evaluateAlarms();
     notifyListeners();
     await _saveLocalLayout();
 
@@ -643,7 +828,32 @@ class LcarsController extends ChangeNotifier {
         notifyListeners();
       case 'TELEMETRY':
         telemetry = TelemetryData.fromPayload(env.payload);
+        _pushHistory('cpu.usage_percent', telemetry.cpuPercent / 100.0);
+        _pushHistory('memory.free_gb', telemetry.memoryPercent / 100.0);
+        if (telemetry.cpuTempCelsius != null) {
+          _pushHistory(
+            'temperature.cpu_celsius',
+            telemetry.cpuTempCelsius! / 100.0,
+          );
+        }
+        _evaluateAlarms();
         notifyListeners();
+      case 'LAYOUT_SYNC':
+        if (env.payload['direction'] == 'pull_response') {
+          try {
+            final restored =
+                LcarsLayoutConfig.fromLayoutSyncPayload(env.payload);
+            layout = restored;
+            _evaluateAlarms();
+            unawaited(_saveLocalLayout());
+            unawaited(refreshHttpPanels());
+            unawaited(refreshCommandPanels());
+            statusLog =
+                'BACKUP RESTAURADO DO PC (${layout.blocks.length} BLOCOS)';
+            unawaited(feedback.playConfirm());
+            notifyListeners();
+          } catch (_) {}
+        }
       case 'ACTION_RESULT':
         final ok = env.payload['status'] == 'ok';
         final actionId = env.payload['action_id'] as String?;

@@ -40,27 +40,60 @@ void main() {
     expect(tapped, isTrue);
   });
 
-  testWidgets('LcarsInfoPanel diferencia modo PC offline e sensor local ativo',
+  testWidgets('LcarsInfoPanel diferencia modo PC offline, local e gráficos',
       (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
           body: Column(
             children: [
-              LcarsInfoPanel(
-                label: 'PC CPU LOAD',
-                value: '45.0%',
-                sourceTag: 'PC',
-                color: LcarsColors.skyBlue,
-                progress: 0.45,
-                offline: true,
+              SizedBox(
+                width: 220,
+                height: 110,
+                child: LcarsInfoPanel(
+                  label: 'PC CPU LOAD',
+                  value: '45.0%',
+                  sourceTag: 'PC',
+                  color: LcarsColors.skyBlue,
+                  progress: 0.45,
+                  offline: true,
+                ),
               ),
-              LcarsInfoPanel(
-                label: 'STARDATE',
-                value: '26904.1',
-                sourceTag: 'LOCAL',
-                color: LcarsColors.lavender,
-                offline: false,
+              SizedBox(
+                width: 220,
+                height: 110,
+                child: LcarsInfoPanel(
+                  label: 'STARDATE',
+                  value: '26904.1',
+                  sourceTag: 'LOCAL',
+                  color: LcarsColors.lavender,
+                  offline: false,
+                ),
+              ),
+              SizedBox(
+                width: 220,
+                height: 110,
+                child: LcarsInfoPanel(
+                  label: 'CPU LINE',
+                  value: '62.0%',
+                  sourceTag: 'PC',
+                  color: LcarsColors.amber,
+                  progress: 0.62,
+                  displayFormat: 'sparkline',
+                  history: [0.2, 0.45, 0.62],
+                ),
+              ),
+              SizedBox(
+                width: 220,
+                height: 110,
+                child: LcarsInfoPanel(
+                  label: 'TEMP GAUGE',
+                  value: '54°C',
+                  sourceTag: 'PC',
+                  color: LcarsColors.gold,
+                  progress: 0.54,
+                  displayFormat: 'gauge',
+                ),
               ),
             ],
           ),
@@ -70,6 +103,8 @@ void main() {
 
     expect(find.text('STANDBY / OFFLINE'), findsOneWidget);
     expect(find.text('26904.1'), findsOneWidget);
+    expect(find.text('62.0%'), findsOneWidget);
+    expect(find.text('54°C'), findsOneWidget);
   });
 
   testWidgets('LcarsElbow e LcarsPillBar renderizam sem erros', (tester) async {

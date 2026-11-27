@@ -184,12 +184,32 @@
         </form>
 
         <div class="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
-          <div class="mb-3 flex items-center justify-between">
+          <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 data-i18n="savedActionsTitle" class="text-xs font-bold tracking-widest text-amber-300 uppercase">
               Ações Cadastradas
             </h2>
-            <span id="actions-count" class="text-xs text-zinc-400">0</span>
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                id="btn-export-backup"
+                data-i18n="btnExportBackup"
+                class="cursor-pointer rounded-full border border-amber-400/50 px-3 py-1 text-[11px] font-semibold text-amber-300 hover:bg-amber-400/15"
+              >
+                Exportar Backup
+              </button>
+              <button
+                type="button"
+                id="btn-import-backup"
+                data-i18n="btnImportBackup"
+                class="cursor-pointer rounded-full border border-cyan-400/50 px-3 py-1 text-[11px] font-semibold text-cyan-300 hover:bg-cyan-400/15"
+              >
+                Importar Backup
+              </button>
+              <input id="input-import-backup" type="file" accept=".json,application/json" class="hidden" />
+              <span id="actions-count" class="text-xs text-zinc-400">0</span>
+            </div>
           </div>
+          <p id="backup-status" class="mb-2 hidden text-xs"></p>
           <ul id="actions-list" class="flex flex-col gap-2"></ul>
         </div>
       </section>
