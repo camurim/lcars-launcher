@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lcars-launcher.local/schemas/action_result.schema.json",
+  "title": "ACTION_RESULT Payload",
+  "type": "object",
+  "required": ["action_id", "status", "duration_ms"],
+  "properties": {
+    "action_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": ["ok", "error", "denied", "not_found", "timeout"]
+    },
+    "exit_code": {
+      "type": ["integer", "null"]
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "message": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

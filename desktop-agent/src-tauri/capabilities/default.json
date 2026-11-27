@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capability padrão para a janela de configuração do LCARS Desktop Agent",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

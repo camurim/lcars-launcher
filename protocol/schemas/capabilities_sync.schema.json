@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lcars-launcher.local/schemas/capabilities_sync.schema.json",
+  "title": "CAPABILITIES_SYNC Payload",
+  "type": "object",
+  "required": ["revision", "actions", "sensors"],
+  "properties": {
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "category", "command_type"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1, "maxLength": 48 },
+          "category": { "type": "string", "minLength": 1 },
+          "command_type": {
+            "type": "string",
+            "enum": [
+              "shell",
+              "app_launch",
+              "hotkey",
+              "http_webhook",
+              "media_key",
+              "system_power"
+            ]
+          },
+          "icon": { "type": "string" },
+          "color_token": {
+            "type": "string",
+            "enum": ["amber", "peach", "lavender", "cyan", "gold", "red_alert"]
+          },
+          "confirm_required": { "type": "boolean", "default": false }
+        },
+        "additionalProperties": false
+      }
+    },
+    "sensors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "label", "kind", "unit", "available"],
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "kind": {
+            "type": "string",
+            "enum": ["cpu", "memory", "temperature", "network", "gpu", "disk"]
+          },
+          "unit": { "type": "string" },
+          "available": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

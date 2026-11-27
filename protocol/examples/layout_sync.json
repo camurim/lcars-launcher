@@ -1,0 +1,75 @@
+{
+  "version": "1.0",
+  "type": "LAYOUT_SYNC",
+  "timestamp": "2026-11-27T11:21:10.000Z",
+  "req_id": "d4e5f6a7-8b9c-4d0e-9f1a-2b3c4d5e6f70",
+  "token": "lcars_tok_live_9f8e7d6c5b4a39281726354453627180",
+  "payload": {
+    "direction": "push",
+    "layout_version": 2,
+    "updated_at": "2026-11-27T11:21:09.900Z",
+    "profile_name": "Ponte Principal",
+    "grid": {
+      "columns": 6,
+      "rows": 4,
+      "orientation": "landscape"
+    },
+    "pages": [
+      {
+        "id": "page_ops",
+        "title": "OPS DECK 01",
+        "accent_color": "amber",
+        "blocks": [
+          {
+            "id": "blk_vscode",
+            "block_type": "action",
+            "label": "VS CODE",
+            "col": 0,
+            "row": 0,
+            "col_span": 2,
+            "row_span": 1,
+            "color_token": "amber",
+            "action_id": "act_open_vscode"
+          },
+          {
+            "id": "blk_terminal",
+            "block_type": "action",
+            "label": "TERMINAL",
+            "col": 2,
+            "row": 0,
+            "col_span": 2,
+            "row_span": 1,
+            "color_token": "peach",
+            "action_id": "act_open_terminal"
+          },
+          {
+            "id": "blk_cpu",
+            "block_type": "info",
+            "label": "CPU CORE",
+            "col": 4,
+            "row": 0,
+            "col_span": 2,
+            "row_span": 2,
+            "color_token": "cyan",
+            "source": "pc_telemetry",
+            "metric_key": "cpu.usage_percent",
+            "display_format": "bar"
+          },
+          {
+            "id": "blk_stardate",
+            "block_type": "info",
+            "label": "STARDATE",
+            "col": 0,
+            "row": 3,
+            "col_span": 2,
+            "row_span": 1,
+            "color_token": "lavender",
+            "source": "local_device",
+            "metric_key": "stardate",
+            "display_format": "clock"
+          }
+        ]
+      }
+    ]
+  }
+}

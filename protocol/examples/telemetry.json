@@ -1,0 +1,33 @@
+{
+  "version": "1.0",
+  "type": "TELEMETRY",
+  "timestamp": "2026-11-27T11:20:01.000Z",
+  "token": "lcars_tok_live_9f8e7d6c5b4a39281726354453627180",
+  "payload": {
+    "interval_ms": 750,
+    "cpu": {
+      "usage_percent": 34.6,
+      "per_core_percent": [42.0, 28.5, 31.0, 36.9],
+      "frequency_mhz": 3850
+    },
+    "memory": {
+      "total_bytes": 34359738368,
+      "free_bytes": 19864223744,
+      "used_bytes": 14495514624,
+      "usage_percent": 42.2
+    },
+    "temperature": {
+      "cpu_celsius": 54.5,
+      "gpu_celsius": 48.0,
+      "sensors": [
+        { "label": "Package id 0", "celsius": 54.5 },
+        { "label": "NVMe 0", "celsius": 39.0 }
+      ]
+    },
+    "network": {
+      "interface": "enp4s0",
+      "rx_bytes_per_sec": 1245184,
+      "tx_bytes_per_sec": 184320
+    }
+  }
+}

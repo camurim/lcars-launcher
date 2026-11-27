@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lcars-launcher.local/schemas/pair_request.schema.json",
+  "title": "PAIR_REQUEST Payload",
+  "type": "object",
+  "required": ["method", "device_id", "device_name", "platform"],
+  "properties": {
+    "method": {
+      "type": "string",
+      "enum": ["pin", "qr"]
+    },
+    "pin": {
+      "type": "string",
+      "pattern": "^[0-9]{6}$"
+    },
+    "qr_nonce": {
+      "type": "string",
+      "minLength": 16
+    },
+    "device_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "device_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "platform": {
+      "type": "string",
+      "enum": ["android", "ios", "ipados"]
+    },
+    "app_version": {
+      "type": "string"
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "method": { "const": "pin" } } },
+      "then": { "required": ["pin"] }
+    },
+    {
+      "if": { "properties": { "method": { "const": "qr" } } },
+      "then": { "required": ["qr_nonce"] }
+    }
+  ],
+  "additionalProperties": false
+}

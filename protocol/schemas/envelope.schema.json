@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lcars-launcher.local/schemas/envelope.schema.json",
+  "title": "LCARS Protocol Envelope",
+  "type": "object",
+  "required": ["version", "type", "timestamp", "payload"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "PAIR_REQUEST",
+        "PAIR_CONFIRM",
+        "CAPABILITIES_SYNC",
+        "TELEMETRY",
+        "EXECUTE_ACTION",
+        "ACTION_RESULT",
+        "LAYOUT_SYNC"
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "req_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "token": {
+      "type": "string",
+      "minLength": 16
+    },
+    "payload": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": false
+}

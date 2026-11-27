@@ -1,0 +1,43 @@
+name: lcars_mobile_client
+description: Cliente mobile/tablet LCARS Launcher inspirado em Star Trek TNG/Voyager (Flutter).
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  web_socket_channel: ^3.0.1
+  bonsoir: ^5.1.10
+  flutter_blue_plus: ^1.35.3
+  flutter_secure_storage: ^9.2.4
+  shared_preferences: ^2.3.5
+  just_audio: ^0.9.46
+  battery_plus: ^6.2.1
+  google_fonts: ^6.2.1
+  mobile_scanner: ^6.0.6
+  wakelock_plus: ^1.2.8
+  uuid: ^4.5.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/icon/app_icon.png
+  adaptive_icon_background: '#000000'
+  adaptive_icon_foreground: assets/icon/app_icon.png
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icon/app_icon.png
+    - assets/sounds/lcars_beep.wav
+    - assets/sounds/lcars_confirm.wav
+    - assets/sounds/lcars_error.wav

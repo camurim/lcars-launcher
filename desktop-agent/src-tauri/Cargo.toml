@@ -1,0 +1,28 @@
+[package]
+name = "lcars-desktop-agent"
+version = "0.1.0"
+description = "LCARS Launcher Desktop Agent (Windows/Linux daemon & config UI)"
+edition = "2021"
+
+[lib]
+name = "lcars_desktop_agent_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = "0.26"
+futures-util = "0.3"
+async-trait = "0.1"
+sysinfo = "0.33"
+mdns-sd = "0.13"
+dirs = "6"
+local-ip-address = "0.6"
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+rand = "0.8"

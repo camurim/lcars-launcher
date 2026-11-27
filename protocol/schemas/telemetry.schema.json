@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lcars-launcher.local/schemas/telemetry.schema.json",
+  "title": "TELEMETRY Payload",
+  "type": "object",
+  "required": ["interval_ms", "cpu", "memory", "network"],
+  "properties": {
+    "interval_ms": {
+      "type": "integer",
+      "minimum": 500,
+      "maximum": 1000
+    },
+    "cpu": {
+      "type": "object",
+      "required": ["usage_percent"],
+      "properties": {
+        "usage_percent": { "type": "number", "minimum": 0, "maximum": 100 },
+        "per_core_percent": {
+          "type": "array",
+          "items": { "type": "number", "minimum": 0, "maximum": 100 }
+        },
+        "frequency_mhz": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "memory": {
+      "type": "object",
+      "required": ["total_bytes", "free_bytes", "used_bytes", "usage_percent"],
+      "properties": {
+        "total_bytes": { "type": "integer", "minimum": 0 },
+        "free_bytes": { "type": "integer", "minimum": 0 },
+        "used_bytes": { "type": "integer", "minimum": 0 },
+        "usage_percent": { "type": "number", "minimum": 0, "maximum": 100 }
+      },
+      "additionalProperties": false
+    },
+    "temperature": {
+      "type": ["object", "null"],
+      "properties": {
+        "cpu_celsius": { "type": ["number", "null"] },
+        "gpu_celsius": { "type": ["number", "null"] },
+        "sensors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["label", "celsius"],
+            "properties": {
+              "label": { "type": "string" },
+              "celsius": { "type": "number" }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "network": {
+      "type": "object",
+      "required": ["interface", "rx_bytes_per_sec", "tx_bytes_per_sec"],
+      "properties": {
+        "interface": { "type": "string" },
+        "rx_bytes_per_sec": { "type": "integer", "minimum": 0 },
+        "tx_bytes_per_sec": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "disks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "mount_point", "total_bytes", "available_bytes", "used_bytes", "usage_percent"],
+        "properties": {
+          "name": { "type": "string" },
+          "mount_point": { "type": "string" },
+          "total_bytes": { "type": "integer", "minimum": 0 },
+          "available_bytes": { "type": "integer", "minimum": 0 },
+          "used_bytes": { "type": "integer", "minimum": 0 },
+          "usage_percent": { "type": "number", "minimum": 0, "maximum": 100 }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

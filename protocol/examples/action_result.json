@@ -1,0 +1,14 @@
+{
+  "version": "1.0",
+  "type": "ACTION_RESULT",
+  "timestamp": "2026-11-27T11:20:05.612Z",
+  "req_id": "a7f1c2d3-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+  "token": "lcars_tok_live_9f8e7d6c5b4a39281726354453627180",
+  "payload": {
+    "action_id": "act_open_vscode",
+    "status": "ok",
+    "exit_code": 0,
+    "duration_ms": 112,
+    "message": "Launched process 'code' (PID 48219)"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "version": "1.0",
+  "type": "PAIR_CONFIRM",
+  "timestamp": "2026-11-27T11:20:00.140Z",
+  "req_id": "1c8a9d20-9a7f-4a1b-9c3d-112233445566",
+  "payload": {
+    "status": "approved",
+    "auth_token": "lcars_tok_live_9f8e7d6c5b4a39281726354453627180",
+    "agent_id": "0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0",
+    "agent_name": "USS-WORKSTATION-01",
+    "os": "linux",
+    "telemetry_interval_ms": 750
+  }
+}

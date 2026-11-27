@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lcars-launcher.local/schemas/pair_confirm.schema.json",
+  "title": "PAIR_CONFIRM Payload",
+  "type": "object",
+  "required": ["status", "agent_id", "agent_name", "os"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["approved", "rejected", "expired"]
+    },
+    "auth_token": {
+      "type": "string",
+      "minLength": 32
+    },
+    "agent_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "agent_name": {
+      "type": "string"
+    },
+    "os": {
+      "type": "string",
+      "enum": ["windows", "linux"]
+    },
+    "telemetry_interval_ms": {
+      "type": "integer",
+      "minimum": 500,
+      "maximum": 1000
+    },
+    "error_code": {
+      "type": "string"
+    },
+    "error_message": {
+      "type": "string"
+    }
+  },
+  "if": { "properties": { "status": { "const": "approved" } } },
+  "then": { "required": ["auth_token", "telemetry_interval_ms"] },
+  "additionalProperties": false
+}

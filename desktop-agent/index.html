@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="pt-BR" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/icon.png" />
+    <title>LCARS Desktop Agent</title>
+  </head>
+  <body class="bg-zinc-950 text-zinc-100 antialiased selection:bg-amber-500 selection:text-black">
+    <div class="mx-auto flex min-h-screen max-w-4xl flex-col gap-5 p-6">
+      <!-- Cabeçalho minimalista -->
+      <header class="flex items-center justify-between border-b-2 border-amber-400/80 pb-4">
+        <div class="flex items-center gap-3">
+          <div class="h-7 w-12 rounded-l-full bg-amber-400"></div>
+          <div>
+            <h1 class="text-lg font-bold tracking-widest text-amber-400 uppercase">
+              LCARS Desktop Agent
+            </h1>
+            <p id="agent-subtitle" class="text-xs text-zinc-400">
+              Daemon WebSocket + mDNS • Protocolo v1.0
+            </p>
+          </div>
+        </div>
+        <span class="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold tracking-wider text-emerald-300 uppercase">
+          Em execução na bandeja
+        </span>
+      </header>
+
+      <!-- Navegação por 3 abas -->
+      <nav class="flex gap-2 border-b border-zinc-800 pb-3" aria-label="Abas de configuração">
+        <button
+          data-tab="actions"
+          class="tab-btn cursor-pointer rounded-full px-4 py-1.5 text-xs font-bold tracking-wider uppercase transition"
+        >
+          1. Ações
+        </button>
+        <button
+          data-tab="pairing"
+          class="tab-btn cursor-pointer rounded-full px-4 py-1.5 text-xs font-bold tracking-wider uppercase transition"
+        >
+          2. Pareamento
+        </button>
+        <button
+          data-tab="devices"
+          class="tab-btn cursor-pointer rounded-full px-4 py-1.5 text-xs font-bold tracking-wider uppercase transition"
+        >
+          3. Dispositivos
+        </button>
+      </nav>
+
+      <!-- ABA 1: AÇÕES (CRUD) -->
+      <section id="panel-actions" class="tab-panel flex flex-col gap-5">
+        <form
+          id="action-form"
+          class="grid grid-cols-1 gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4 sm:grid-cols-2"
+        >
+          <input type="hidden" id="act-id" />
+          <div>
+            <label for="act-name" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
+              Nome da Ação
+            </label>
+            <input
+              id="act-name"
+              type="text"
+              required
+              placeholder="Ex.: VS Code"
+              class="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-amber-400 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label for="act-category" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
+              Categoria
+            </label>
+            <input
+              id="act-category"
+              type="text"
+              required
+              placeholder="apps, scripts, media, web"
+              value="apps"
+              class="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-amber-400 focus:outline-none"
+            />
+          </div>
+
+          <div class="sm:col-span-2">
+            <label for="act-target" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
+              Executável, Script ou URL
+            </label>
+            <input
+              id="act-target"
+              type="text"
+              required
+              placeholder="Ex.: code, /home/user/script.sh, C:\App\app.exe ou https://..."
+              class="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono text-sm text-zinc-100 focus:border-amber-400 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label for="act-args" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
+              Argumentos (separados por espaço)
+            </label>
+            <input
+              id="act-args"
+              type="text"
+              placeholder="Ex.: --new-window /caminho"
+              class="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono text-sm text-zinc-100 focus:border-amber-400 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label for="act-command-type" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
+              Tipo de Execução
+            </label>
+            <select
+              id="act-command-type"
+              class="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-amber-400 focus:outline-none"
+            >
+              <option value="app_launch">Abrir App / URL (desacoplado)</option>
+              <option value="shell">Comando com Saída (exibir texto no painel)</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="act-color" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
+              Cor LCARS
+            </label>
+            <select
+              id="act-color"
+              class="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-amber-400 focus:outline-none"
+            >
+              <option value="amber">Amber</option>
+              <option value="peach">Peach</option>
+              <option value="lavender">Lavender</option>
+              <option value="cyan">Cyan</option>
+              <option value="gold">Gold</option>
+              <option value="red_alert">Red Alert</option>
+            </select>
+          </div>
+
+          <div class="flex items-center justify-end gap-2 pt-2 sm:col-span-2">
+            <button
+              type="button"
+              id="btn-cancel-edit"
+              class="hidden cursor-pointer rounded-full border border-zinc-700 px-4 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-800"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              id="btn-save-action"
+              class="cursor-pointer rounded-full bg-amber-400 px-5 py-1.5 text-xs font-bold tracking-wider text-black uppercase hover:bg-amber-300"
+            >
+              Salvar Ação
+            </button>
+          </div>
+        </form>
+
+        <div class="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
+          <div class="mb-3 flex items-center justify-between">
+            <h2 class="text-xs font-bold tracking-widest text-amber-300 uppercase">
+              Ações Cadastradas
+            </h2>
+            <span id="actions-count" class="text-xs text-zinc-400">0 ações</span>
+          </div>
+          <ul id="actions-list" class="flex flex-col gap-2"></ul>
+        </div>
+      </section>
+
+      <!-- ABA 2: PAREAMENTO (IP, PORTA, PIN, QR CODE) -->
+      <section id="panel-pairing" class="tab-panel hidden grid-cols-1 gap-5 md:grid-cols-2">
+        <div class="flex flex-col justify-between gap-4 rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5">
+          <div class="space-y-3">
+            <h2 class="text-xs font-bold tracking-widest text-amber-300 uppercase">
+              Conexão &amp; PIN Temporário
+            </h2>
+            <div class="grid grid-cols-2 gap-3 text-xs">
+              <div class="rounded-xl bg-zinc-950 p-3 border border-zinc-800">
+                <div class="text-zinc-400 uppercase">IP Local</div>
+                <div id="pair-ip" class="mt-1 font-mono text-sm font-bold text-amber-200">127.0.0.1</div>
+              </div>
+              <div class="rounded-xl bg-zinc-950 p-3 border border-zinc-800">
+                <div class="text-zinc-400 uppercase">Porta WS</div>
+                <div id="pair-port" class="mt-1 font-mono text-sm font-bold text-amber-200">8765</div>
+              </div>
+            </div>
+
+            <div class="rounded-xl border border-amber-500/40 bg-zinc-950 p-4 text-center">
+              <div class="text-[11px] tracking-widest text-zinc-400 uppercase">PIN de 6 Dígitos</div>
+              <div id="pair-pin" class="mt-1 font-mono text-4xl font-black tracking-[0.35em] text-amber-400">
+                ------
+              </div>
+            </div>
+
+            <p class="text-[11px] text-zinc-400">
+              mDNS ativo: <code id="pair-mdns" class="text-violet-300">_lcars-agent._tcp.local.</code><br />
+              USB (Android): <code class="text-cyan-300">adb reverse tcp:8765 tcp:8765</code><br />
+              <span class="text-amber-300/90">Nota: mesmo via cabo USB, informe este PIN de 6 dígitos no app mobile para parear.</span>
+            </p>
+          </div>
+
+          <div class="flex flex-col gap-2">
+            <button
+              id="btn-regen-pin"
+              class="cursor-pointer rounded-full bg-amber-400 px-4 py-2 text-xs font-bold tracking-wider text-black uppercase hover:bg-amber-300"
+            >
+              Gerar Novo PIN e QR Code
+            </button>
+            <button
+              id="btn-adb-reverse"
+              class="cursor-pointer rounded-full border border-cyan-400/50 bg-cyan-500/10 px-4 py-2 text-xs font-bold tracking-wider text-cyan-300 uppercase hover:bg-cyan-500/20"
+            >
+              Ativar Túnel USB (ADB Reverse)
+            </button>
+            <p id="adb-status" class="hidden text-center text-[11px]"></p>
+          </div>
+        </div>
+
+        <div class="flex flex-col items-center justify-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5">
+          <h2 class="text-xs font-bold tracking-widest text-violet-300 uppercase">
+            Pareamento Rápido (QR Code)
+          </h2>
+          <div class="rounded-2xl bg-white p-3">
+            <canvas id="pair-qr-canvas" width="220" height="220"></canvas>
+          </div>
+          <code id="pair-qr-json" class="max-w-full truncate text-[11px] text-zinc-400"></code>
+        </div>
+      </section>
+
+      <!-- ABA 3: DISPOSITIVOS AUTORIZADOS -->
+      <section id="panel-devices" class="tab-panel hidden rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5">
+        <div class="mb-4 flex items-center justify-between">
+          <h2 class="text-xs font-bold tracking-widest text-cyan-300 uppercase">
+            Tablets &amp; Smartphones Autorizados
+          </h2>
+          <button
+            id="btn-refresh-devices"
+            class="cursor-pointer rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-300 hover:bg-zinc-800"
+          >
+            Atualizar
+          </button>
+        </div>
+        <ul id="devices-list" class="flex flex-col gap-2"></ul>
+      </section>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

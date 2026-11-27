@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lcars-launcher.local/schemas/execute_action.schema.json",
+  "title": "EXECUTE_ACTION Payload",
+  "type": "object",
+  "required": ["action_id"],
+  "properties": {
+    "action_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "args": {
+      "type": "object",
+      "additionalProperties": {
+        "type": ["string", "number", "boolean"]
+      }
+    }
+  },
+  "additionalProperties": false
+}

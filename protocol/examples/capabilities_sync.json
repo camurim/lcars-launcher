@@ -1,0 +1,53 @@
+{
+  "version": "1.0",
+  "type": "CAPABILITIES_SYNC",
+  "timestamp": "2026-11-27T11:20:00.250Z",
+  "token": "lcars_tok_live_9f8e7d6c5b4a39281726354453627180",
+  "payload": {
+    "revision": 3,
+    "actions": [
+      {
+        "id": "act_open_vscode",
+        "name": "VS CODE",
+        "category": "apps",
+        "command_type": "app_launch",
+        "icon": "code",
+        "color_token": "amber",
+        "confirm_required": false
+      },
+      {
+        "id": "act_open_terminal",
+        "name": "TERMINAL",
+        "category": "apps",
+        "command_type": "app_launch",
+        "icon": "terminal",
+        "color_token": "peach",
+        "confirm_required": false
+      },
+      {
+        "id": "act_media_play_pause",
+        "name": "PLAY / PAUSE",
+        "category": "media",
+        "command_type": "media_key",
+        "icon": "play_pause",
+        "color_token": "lavender",
+        "confirm_required": false
+      },
+      {
+        "id": "act_lock_screen",
+        "name": "LOCK WORKSTATION",
+        "category": "system",
+        "command_type": "system_power",
+        "icon": "lock",
+        "color_token": "red_alert",
+        "confirm_required": true
+      }
+    ],
+    "sensors": [
+      { "id": "cpu_total", "label": "CPU LOAD", "kind": "cpu", "unit": "%", "available": true },
+      { "id": "ram_usage", "label": "MEMORY", "kind": "memory", "unit": "GB", "available": true },
+      { "id": "cpu_temp", "label": "CORE TEMP", "kind": "temperature", "unit": "C", "available": true },
+      { "id": "net_primary", "label": "SUBSPACE LINK", "kind": "network", "unit": "KB/s", "available": true }
+    ]
+  }
+}
