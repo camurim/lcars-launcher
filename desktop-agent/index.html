@@ -70,6 +70,38 @@
         >
           <input type="hidden" id="act-id" />
           <div>
+            <label for="act-command-type" data-i18n="labelExecType" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
+              Tipo de Execução
+            </label>
+            <select
+              id="act-command-type"
+              class="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-amber-400 focus:outline-none"
+            >
+              <option value="app_launch" data-i18n="optAppLaunch">Abrir App / URL (desacoplado)</option>
+              <option value="shell" data-i18n="optShell">Comando com Saída (exibir texto no painel)</option>
+              <option value="media_key" data-i18n="optMediaKey">Controle de Áudio / Mídia (PC)</option>
+              <option value="system_power" data-i18n="optSystemPower">Controle de Sistema / Energia (PC)</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="act-color" data-i18n="labelColor" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
+              Cor do Painel
+            </label>
+            <select
+              id="act-color"
+              class="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-amber-400 focus:outline-none"
+            >
+              <option value="amber">Amber</option>
+              <option value="peach">Peach</option>
+              <option value="lavender">Lavender</option>
+              <option value="cyan">Cyan</option>
+              <option value="gold">Gold</option>
+              <option value="red_alert">Red Alert</option>
+            </select>
+          </div>
+
+          <div>
             <label for="act-name" data-i18n="labelActionName" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
               Nome da Ação
             </label>
@@ -119,7 +151,7 @@
             ></select>
           </div>
 
-          <div id="field-args">
+          <div id="field-args" class="sm:col-span-2">
             <label for="act-args" data-i18n="labelArgs" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
               Argumentos (separados por espaço)
             </label>
@@ -129,38 +161,6 @@
               placeholder="Ex.: --new-window /caminho"
               class="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono text-sm text-zinc-100 focus:border-amber-400 focus:outline-none"
             />
-          </div>
-
-          <div>
-            <label for="act-command-type" data-i18n="labelExecType" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
-              Tipo de Execução
-            </label>
-            <select
-              id="act-command-type"
-              class="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-amber-400 focus:outline-none"
-            >
-              <option value="app_launch" data-i18n="optAppLaunch">Abrir App / URL (desacoplado)</option>
-              <option value="shell" data-i18n="optShell">Comando com Saída (exibir texto no painel)</option>
-              <option value="media_key" data-i18n="optMediaKey">Controle de Áudio / Mídia (PC)</option>
-              <option value="system_power" data-i18n="optSystemPower">Controle de Sistema / Energia (PC)</option>
-            </select>
-          </div>
-
-          <div>
-            <label for="act-color" data-i18n="labelColor" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
-              Cor LCARS
-            </label>
-            <select
-              id="act-color"
-              class="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-amber-400 focus:outline-none"
-            >
-              <option value="amber">Amber</option>
-              <option value="peach">Peach</option>
-              <option value="lavender">Lavender</option>
-              <option value="cyan">Cyan</option>
-              <option value="gold">Gold</option>
-              <option value="red_alert">Red Alert</option>
-            </select>
           </div>
 
           <div class="flex items-center justify-end gap-2 pt-2 sm:col-span-2">

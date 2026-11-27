@@ -196,16 +196,6 @@ class _LcarsConsoleScreenState extends State<LcarsConsoleScreen>
                                       onTap: controller.toggleAlarmMute,
                                     ),
                                   ],
-                                  const SizedBox(height: 6),
-                                  _SideBarTile(
-                                    label: editing
-                                        ? l10n.sideDone
-                                        : l10n.sideEditPanel,
-                                    color: editing
-                                        ? LcarsColors.skyBlue
-                                        : LcarsColors.gold,
-                                    onTap: controller.toggleBlueprintMode,
-                                  ),
                                   if (editing) ...[
                                     const SizedBox(height: 6),
                                     _SideBarTile(
@@ -219,6 +209,19 @@ class _LcarsConsoleScreenState extends State<LcarsConsoleScreen>
                                       label: l10n.sideBackup,
                                       color: LcarsColors.lavender,
                                       onTap: () => _openBackupDialog(context),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    _SideBarTile(
+                                      label: l10n.sideDone,
+                                      color: LcarsColors.skyBlue,
+                                      onTap: controller.toggleBlueprintMode,
+                                    ),
+                                  ] else ...[
+                                    const SizedBox(height: 6),
+                                    _SideBarTile(
+                                      label: l10n.sideEditPanel,
+                                      color: LcarsColors.gold,
+                                      onTap: controller.toggleBlueprintMode,
                                     ),
                                   ],
                                   const SizedBox(height: 6),
