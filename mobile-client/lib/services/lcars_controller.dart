@@ -64,71 +64,85 @@ class LcarsController extends ChangeNotifier {
   LcarsLayoutConfig layout = const LcarsLayoutConfig(
     layoutVersion: 1,
     profileName: 'OPS DECK 01',
-    blocks: [
-      LcarsBlockConfig(
-        id: 'blk_cpu',
-        blockType: LcarsBlockType.info,
-        label: 'PC CPU LOAD',
-        colorToken: 'cyan',
-        source: InfoSource.pcTelemetry,
-        metricKey: 'cpu.usage_percent',
-      ),
-      LcarsBlockConfig(
-        id: 'blk_ram',
-        blockType: LcarsBlockType.info,
-        label: 'PC RAM FREE',
-        colorToken: 'lavender',
-        source: InfoSource.pcTelemetry,
-        metricKey: 'memory.free_gb',
-      ),
-      LcarsBlockConfig(
-        id: 'blk_temp',
-        blockType: LcarsBlockType.info,
-        label: 'CORE TEMP',
-        colorToken: 'gold',
-        source: InfoSource.pcTelemetry,
-        metricKey: 'temperature.cpu_celsius',
-      ),
-      LcarsBlockConfig(
-        id: 'blk_vscode',
-        blockType: LcarsBlockType.action,
-        label: 'VS CODE',
-        colorToken: 'amber',
-        actionId: 'act_open_vscode',
-      ),
-      LcarsBlockConfig(
-        id: 'blk_terminal',
-        blockType: LcarsBlockType.action,
-        label: 'TERMINAL',
-        colorToken: 'peach',
-        actionId: 'act_open_terminal',
-      ),
-      LcarsBlockConfig(
-        id: 'blk_stardate',
-        blockType: LcarsBlockType.info,
-        label: 'STARDATE',
-        colorToken: 'lavender',
-        source: InfoSource.localDevice,
-        metricKey: 'stardate',
-      ),
-      LcarsBlockConfig(
-        id: 'blk_clock',
-        blockType: LcarsBlockType.info,
-        label: 'SHIP TIME',
-        colorToken: 'cyan',
-        source: InfoSource.localDevice,
-        metricKey: 'clock',
-      ),
-      LcarsBlockConfig(
-        id: 'blk_battery',
-        blockType: LcarsBlockType.info,
-        label: 'TABLET POWER',
-        colorToken: 'gold',
-        source: InfoSource.localDevice,
-        metricKey: 'battery_level',
+    pages: [
+      LcarsPageConfig(
+        id: 'page_main',
+        title: 'OPS DECK 01',
+        accentColor: 'amber',
+        blocks: [
+          LcarsBlockConfig(
+            id: 'blk_cpu',
+            blockType: LcarsBlockType.info,
+            label: 'PC CPU LOAD',
+            colorToken: 'cyan',
+            source: InfoSource.pcTelemetry,
+            metricKey: 'cpu.usage_percent',
+          ),
+          LcarsBlockConfig(
+            id: 'blk_ram',
+            blockType: LcarsBlockType.info,
+            label: 'PC RAM FREE',
+            colorToken: 'lavender',
+            source: InfoSource.pcTelemetry,
+            metricKey: 'memory.free_gb',
+          ),
+          LcarsBlockConfig(
+            id: 'blk_temp',
+            blockType: LcarsBlockType.info,
+            label: 'CORE TEMP',
+            colorToken: 'gold',
+            source: InfoSource.pcTelemetry,
+            metricKey: 'temperature.cpu_celsius',
+          ),
+          LcarsBlockConfig(
+            id: 'blk_vscode',
+            blockType: LcarsBlockType.action,
+            label: 'VS CODE',
+            colorToken: 'amber',
+            actionId: 'act_open_vscode',
+          ),
+          LcarsBlockConfig(
+            id: 'blk_terminal',
+            blockType: LcarsBlockType.action,
+            label: 'TERMINAL',
+            colorToken: 'peach',
+            actionId: 'act_open_terminal',
+          ),
+          LcarsBlockConfig(
+            id: 'blk_stardate',
+            blockType: LcarsBlockType.info,
+            label: 'STARDATE',
+            colorToken: 'lavender',
+            source: InfoSource.localDevice,
+            metricKey: 'stardate',
+          ),
+          LcarsBlockConfig(
+            id: 'blk_clock',
+            blockType: LcarsBlockType.info,
+            label: 'SHIP TIME',
+            colorToken: 'cyan',
+            source: InfoSource.localDevice,
+            metricKey: 'clock',
+          ),
+          LcarsBlockConfig(
+            id: 'blk_battery',
+            blockType: LcarsBlockType.info,
+            label: 'TABLET POWER',
+            colorToken: 'gold',
+            source: InfoSource.localDevice,
+            metricKey: 'battery_level',
+          ),
+        ],
       ),
     ],
   );
+
+  int activePageIndex = 0;
+
+  LcarsPageConfig get activePage {
+    final safeIdx = activePageIndex.clamp(0, layout.pages.length - 1);
+    return layout.pages[safeIdx];
+  }
 
   bool blueprintMode = false;
   bool keepScreenOn = true;
@@ -176,7 +190,7 @@ class LcarsController extends ChangeNotifier {
     var visual = false;
     var sound = false;
 
-    for (final blk in layout.blocks) {
+    for (final blk in layout.allBlocks) {
       if (blk.blockType != LcarsBlockType.info || blk.alarmMode == 'none') {
         continue;
       }
@@ -553,7 +567,7 @@ class LcarsController extends ChangeNotifier {
   /// Atualiza todos os painéis de informação vinculados à saída de comandos `shell` (`cmd:<action_id>`).
   Future<void> refreshCommandPanels() async {
     if (!isPcOnline) return;
-    for (final blk in layout.blocks) {
+    for (final blk in layout.allBlocks) {
       if (blk.blockType == LcarsBlockType.info &&
           blk.metricKey != null &&
           blk.metricKey!.startsWith('cmd:')) {
@@ -565,7 +579,7 @@ class LcarsController extends ChangeNotifier {
 
   /// Atualiza todos os painéis HTTP/REST (`http:{...}`) de forma independente do PC.
   Future<void> refreshHttpPanels() async {
-    for (final blk in layout.blocks) {
+    for (final blk in layout.allBlocks) {
       if (blk.blockType == LcarsBlockType.info &&
           (blk.metricKey?.startsWith('http:') ?? false)) {
         await refreshSingleHttpPanel(blk, silent: true);
@@ -607,15 +621,73 @@ class LcarsController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> addOrUpdateBlock(LcarsBlockConfig block) async {
-    final updated = List<LcarsBlockConfig>.from(layout.blocks);
-    final idx = updated.indexWhere((b) => b.id == block.id);
-    if (idx >= 0) {
-      updated[idx] = block;
-    } else {
-      updated.add(block);
+  void selectPage(int index) {
+    if (index < 0 || index >= layout.pages.length || index == activePageIndex) {
+      return;
     }
-    await _commitLayout(updated);
+    activePageIndex = index;
+    unawaited(feedback.playTap());
+    notifyListeners();
+  }
+
+  Future<void> addPage({
+    required String title,
+    String accentColor = 'lavender',
+  }) async {
+    final updatedPages = List<LcarsPageConfig>.from(layout.pages)
+      ..add(
+        LcarsPageConfig(
+          id: 'page_${_uuid.v4().substring(0, 8)}',
+          title: title.trim().isEmpty
+              ? 'DECK ${layout.pages.length + 1}'
+              : title.trim(),
+          accentColor: accentColor,
+          blocks: const [],
+        ),
+      );
+    activePageIndex = updatedPages.length - 1;
+    unawaited(feedback.playTap());
+    await _commitPages(updatedPages);
+  }
+
+  Future<void> updatePage(
+    int index, {
+    required String title,
+    required String accentColor,
+  }) async {
+    if (index < 0 || index >= layout.pages.length) return;
+    final updatedPages = List<LcarsPageConfig>.from(layout.pages);
+    updatedPages[index] = updatedPages[index].copyWith(
+      title: title.trim().isEmpty ? updatedPages[index].title : title.trim(),
+      accentColor: accentColor,
+    );
+    await _commitPages(updatedPages);
+  }
+
+  Future<void> removePage(int index) async {
+    if (layout.pages.length <= 1 ||
+        index < 0 ||
+        index >= layout.pages.length) {
+      return;
+    }
+    final updatedPages = List<LcarsPageConfig>.from(layout.pages)
+      ..removeAt(index);
+    if (activePageIndex >= updatedPages.length) {
+      activePageIndex = updatedPages.length - 1;
+    }
+    unawaited(feedback.playTap());
+    await _commitPages(updatedPages);
+  }
+
+  Future<void> addOrUpdateBlock(LcarsBlockConfig block) async {
+    final updatedBlocks = List<LcarsBlockConfig>.from(activePage.blocks);
+    final idx = updatedBlocks.indexWhere((b) => b.id == block.id);
+    if (idx >= 0) {
+      updatedBlocks[idx] = block;
+    } else {
+      updatedBlocks.add(block);
+    }
+    await _commitActivePageBlocks(updatedBlocks);
     if (block.blockType == LcarsBlockType.info &&
         block.metricKey != null &&
         block.metricKey!.startsWith('cmd:') &&
@@ -628,12 +700,12 @@ class LcarsController extends ChangeNotifier {
   }
 
   Future<void> removeBlock(String blockId) async {
-    final updated = layout.blocks.where((b) => b.id != blockId).toList();
-    await _commitLayout(updated);
+    final updated = activePage.blocks.where((b) => b.id != blockId).toList();
+    await _commitActivePageBlocks(updated);
   }
 
   Future<void> reorderBlock(int fromIndex, int toIndex) async {
-    final blocks = layout.blocks;
+    final blocks = activePage.blocks;
     if (fromIndex < 0 ||
         fromIndex >= blocks.length ||
         toIndex < 0 ||
@@ -645,12 +717,12 @@ class LcarsController extends ChangeNotifier {
     final updated = List<LcarsBlockConfig>.from(blocks);
     final moved = updated.removeAt(fromIndex);
     updated.insert(toIndex, moved);
-    await _commitLayout(updated);
+    await _commitActivePageBlocks(updated);
   }
 
   Future<void> moveBlockByDelta(int index, int delta) async {
     final target = index + delta;
-    if (target < 0 || target >= layout.blocks.length) return;
+    if (target < 0 || target >= activePage.blocks.length) return;
     await reorderBlock(index, target);
   }
 
@@ -704,8 +776,9 @@ class LcarsController extends ChangeNotifier {
     layout = LcarsLayoutConfig(
       layoutVersion: restoredLayout.layoutVersion + 1,
       profileName: restoredLayout.profileName,
-      blocks: restoredLayout.blocks,
+      pages: restoredLayout.pages,
     );
+    activePageIndex = 0;
     _evaluateAlarms();
     notifyListeners();
     await _saveLocalLayout();
@@ -715,7 +788,8 @@ class LcarsController extends ChangeNotifier {
     }
     unawaited(refreshHttpPanels());
     unawaited(refreshCommandPanels());
-    statusLog = 'BACKUP RESTAURADO (${layout.blocks.length} BLOCOS)';
+    statusLog =
+        'BACKUP RESTAURADO (${layout.pages.length} PÁG / ${layout.allBlocks.length} BLOCOS)';
     unawaited(feedback.playConfirm());
     notifyListeners();
   }
@@ -750,11 +824,22 @@ class LcarsController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _commitLayout(List<LcarsBlockConfig> updatedBlocks) async {
+  Future<void> _commitActivePageBlocks(
+    List<LcarsBlockConfig> updatedBlocks,
+  ) async {
+    final safeIdx = activePageIndex.clamp(0, layout.pages.length - 1);
+    final updatedPages = List<LcarsPageConfig>.from(layout.pages);
+    updatedPages[safeIdx] = updatedPages[safeIdx].copyWith(
+      blocks: updatedBlocks,
+    );
+    await _commitPages(updatedPages);
+  }
+
+  Future<void> _commitPages(List<LcarsPageConfig> updatedPages) async {
     layout = LcarsLayoutConfig(
       layoutVersion: layout.layoutVersion + 1,
       profileName: layout.profileName,
-      blocks: updatedBlocks,
+      pages: updatedPages,
     );
     _evaluateAlarms();
     notifyListeners();
@@ -805,18 +890,22 @@ class LcarsController extends ChangeNotifier {
                 Map<String, dynamic>.from(a as Map)))
             .toList();
         final validIds = availableActions.map((a) => a.id).toSet();
-        final filteredBlocks = layout.blocks
-            .where((b) =>
-                !b.dependsOnPc ||
-                b.blockType != LcarsBlockType.action ||
-                (b.actionId != null && validIds.contains(b.actionId)))
-            .toList();
-        final removedCount = layout.blocks.length - filteredBlocks.length;
+        var removedCount = 0;
+        final updatedPages = layout.pages.map((page) {
+          final filtered = page.blocks
+              .where((b) =>
+                  !b.dependsOnPc ||
+                  b.blockType != LcarsBlockType.action ||
+                  (b.actionId != null && validIds.contains(b.actionId)))
+              .toList();
+          removedCount += page.blocks.length - filtered.length;
+          return page.copyWith(blocks: filtered);
+        }).toList();
         if (removedCount > 0) {
           layout = LcarsLayoutConfig(
             layoutVersion: layout.layoutVersion + 1,
             profileName: layout.profileName,
-            blocks: filteredBlocks,
+            pages: updatedPages,
           );
           unawaited(_saveLocalLayout());
           statusLog =
@@ -844,12 +933,13 @@ class LcarsController extends ChangeNotifier {
             final restored =
                 LcarsLayoutConfig.fromLayoutSyncPayload(env.payload);
             layout = restored;
+            activePageIndex = 0;
             _evaluateAlarms();
             unawaited(_saveLocalLayout());
             unawaited(refreshHttpPanels());
             unawaited(refreshCommandPanels());
             statusLog =
-                'BACKUP RESTAURADO DO PC (${layout.blocks.length} BLOCOS)';
+                'BACKUP RESTAURADO DO PC (${layout.pages.length} PÁG / ${layout.allBlocks.length} BLOCOS)';
             unawaited(feedback.playConfirm());
             notifyListeners();
           } catch (_) {}

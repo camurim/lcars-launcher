@@ -123,5 +123,10 @@
   "backupRestoredOk": "Backup restored successfully!",
   "backupInvalidError": "Invalid backup JSON",
   "backupPushedPc": "Layout backup sent to PC!",
-  "backupPulledPc": "Requesting backup from PC..."
+  "backupPulledPc": "Requesting backup from PC...",
+  "btnAddPage": "+ PAGE",
+  "dialogNewPageTitle": "NEW DECK PAGE",
+  "dialogEditPageTitle": "EDIT DECK PAGE",
+  "fieldPageTitle": "PAGE NAME",
+  "btnSavePage": "SAVE PAGE"
 }

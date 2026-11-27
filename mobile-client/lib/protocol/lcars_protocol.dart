@@ -315,16 +315,73 @@ class LcarsBlockConfig {
   }
 }
 
+class LcarsPageConfig {
+  final String id;
+  final String title;
+  final String accentColor;
+  final List<LcarsBlockConfig> blocks;
+
+  const LcarsPageConfig({
+    required this.id,
+    required this.title,
+    this.accentColor = 'amber',
+    required this.blocks,
+  });
+
+  LcarsPageConfig copyWith({
+    String? id,
+    String? title,
+    String? accentColor,
+    List<LcarsBlockConfig>? blocks,
+  }) {
+    return LcarsPageConfig(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      accentColor: accentColor ?? this.accentColor,
+      blocks: blocks ?? this.blocks,
+    );
+  }
+
+  Map<String, dynamic> toProtocolJson() {
+    return {
+      'id': id,
+      'title': title,
+      'accent_color': accentColor,
+      'blocks': [
+        for (var i = 0; i < blocks.length; i++) blocks[i].toProtocolJson(i),
+      ],
+    };
+  }
+
+  factory LcarsPageConfig.fromProtocolJson(Map<String, dynamic> json) {
+    final rawBlocks = json['blocks'] as List<dynamic>? ?? [];
+    return LcarsPageConfig(
+      id: json['id'] as String? ?? 'page_main',
+      title: json['title'] as String? ?? 'OPS DECK 01',
+      accentColor: json['accent_color'] as String? ?? 'amber',
+      blocks: rawBlocks
+          .map((b) => LcarsBlockConfig.fromProtocolJson(
+              Map<String, dynamic>.from(b as Map)))
+          .toList(),
+    );
+  }
+}
+
 class LcarsLayoutConfig {
   final int layoutVersion;
   final String profileName;
-  final List<LcarsBlockConfig> blocks;
+  final List<LcarsPageConfig> pages;
 
   const LcarsLayoutConfig({
     required this.layoutVersion,
     required this.profileName,
-    required this.blocks,
+    required this.pages,
   });
+
+  List<LcarsBlockConfig> get blocks =>
+      pages.isNotEmpty ? pages.first.blocks : const [];
+
+  Iterable<LcarsBlockConfig> get allBlocks => pages.expand((p) => p.blocks);
 
   Map<String, dynamic> toLayoutSyncPayload({String direction = 'push'}) {
     return {
@@ -337,32 +394,30 @@ class LcarsLayoutConfig {
         'rows': 3,
         'orientation': 'landscape',
       },
-      'pages': [
-        {
-          'id': 'page_main',
-          'title': 'OPS DECK 01',
-          'accent_color': 'amber',
-          'blocks': [
-            for (var i = 0; i < blocks.length; i++) blocks[i].toProtocolJson(i),
-          ],
-        },
-      ],
+      'pages': pages.map((p) => p.toProtocolJson()).toList(),
     };
   }
 
   factory LcarsLayoutConfig.fromLayoutSyncPayload(Map<String, dynamic> json) {
-    final pages = json['pages'] as List<dynamic>? ?? [];
-    final firstPage = pages.isNotEmpty
-        ? Map<String, dynamic>.from(pages.first as Map)
-        : <String, dynamic>{};
-    final rawBlocks = firstPage['blocks'] as List<dynamic>? ?? [];
+    final rawPages = json['pages'] as List<dynamic>? ?? [];
+    final parsedPages = rawPages
+        .map((p) => LcarsPageConfig.fromProtocolJson(
+            Map<String, dynamic>.from(p as Map)))
+        .toList();
+
     return LcarsLayoutConfig(
       layoutVersion: (json['layout_version'] as num?)?.toInt() ?? 1,
       profileName: json['profile_name'] as String? ?? 'OPS DECK 01',
-      blocks: rawBlocks
-          .map((b) => LcarsBlockConfig.fromProtocolJson(
-              Map<String, dynamic>.from(b as Map)))
-          .toList(),
+      pages: parsedPages.isNotEmpty
+          ? parsedPages
+          : const [
+              LcarsPageConfig(
+                id: 'page_main',
+                title: 'OPS DECK 01',
+                accentColor: 'amber',
+                blocks: [],
+              ),
+            ],
     );
   }
 }

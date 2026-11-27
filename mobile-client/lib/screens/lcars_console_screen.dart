@@ -241,37 +241,111 @@ class _LcarsConsoleScreenState extends State<LcarsConsoleScreen>
                             ),
                             const SizedBox(width: 12),
 
-                            // Grade Dinâmica
+                            // Área direita: faixa de páginas (abas LCARS) + Grade Dinâmica
                             Expanded(
-                              child: LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final cols = constraints.maxWidth > 720
-                                      ? 4
-                                      : (constraints.maxWidth > 460 ? 3 : 2);
-                                  final blocks = controller.layout.blocks;
-
-                                  return GridView.builder(
-                                    gridDelegate:
-                                        SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: cols,
-                                      mainAxisSpacing: 10,
-                                      crossAxisSpacing: 10,
-                                      childAspectRatio: 1.55,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  if (controller.layout.pages.length > 1 ||
+                                      editing) ...[
+                                    SizedBox(
+                                      height: 32,
+                                      child: ListView(
+                                        scrollDirection: Axis.horizontal,
+                                        children: [
+                                          for (var i = 0;
+                                              i <
+                                                  controller
+                                                      .layout.pages.length;
+                                              i++) ...[
+                                            _PageTabChip(
+                                              title: controller
+                                                  .layout.pages[i].title,
+                                              color: LcarsColors.fromToken(
+                                                controller.layout.pages[i]
+                                                    .accentColor,
+                                              ),
+                                              active: i ==
+                                                  controller.activePageIndex,
+                                              editing: editing,
+                                              onTap: () {
+                                                if (editing &&
+                                                    i ==
+                                                        controller
+                                                            .activePageIndex) {
+                                                  _openPageEditor(
+                                                    context,
+                                                    i,
+                                                    controller.layout.pages[i],
+                                                  );
+                                                } else {
+                                                  controller.selectPage(i);
+                                                }
+                                              },
+                                              onLongPress: editing
+                                                  ? () => _openPageEditor(
+                                                        context,
+                                                        i,
+                                                        controller
+                                                            .layout.pages[i],
+                                                      )
+                                                  : null,
+                                            ),
+                                            const SizedBox(width: 6),
+                                          ],
+                                          if (editing)
+                                            _PageTabChip(
+                                              title: l10n.btnAddPage,
+                                              color: LcarsColors.skyBlue,
+                                              active: true,
+                                              editing: false,
+                                              onTap: () => _openPageEditor(
+                                                context,
+                                                null,
+                                                null,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
                                     ),
-                                    itemCount: blocks.length,
-                                    itemBuilder: (context, index) {
-                                      final blk = blocks[index];
-                                      return _buildGridBlock(
-                                        context,
-                                        blk,
-                                        index,
-                                        cols,
-                                        blocks.length,
-                                        pulse,
-                                      );
-                                    },
-                                  );
-                                },
+                                    const SizedBox(height: 8),
+                                  ],
+                                  Expanded(
+                                    child: LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        final cols = constraints.maxWidth > 720
+                                            ? 4
+                                            : (constraints.maxWidth > 460
+                                                ? 3
+                                                : 2);
+                                        final blocks =
+                                            controller.activePage.blocks;
+
+                                        return GridView.builder(
+                                          gridDelegate:
+                                              SliverGridDelegateWithFixedCrossAxisCount(
+                                            crossAxisCount: cols,
+                                            mainAxisSpacing: 10,
+                                            crossAxisSpacing: 10,
+                                            childAspectRatio: 1.55,
+                                          ),
+                                          itemCount: blocks.length,
+                                          itemBuilder: (context, index) {
+                                            final blk = blocks[index];
+                                            return _buildGridBlock(
+                                              context,
+                                              blk,
+                                              index,
+                                              cols,
+                                              blocks.length,
+                                              pulse,
+                                            );
+                                          },
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -519,6 +593,198 @@ class _LcarsConsoleScreenState extends State<LcarsConsoleScreen>
     await showDialog<void>(
       context: context,
       builder: (ctx) => _BackupRestoreDialog(controller: controller),
+    );
+  }
+
+  Future<void> _openPageEditor(
+    BuildContext context,
+    int? pageIndex,
+    LcarsPageConfig? existing,
+  ) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => _PageEditorDialog(
+        controller: controller,
+        pageIndex: pageIndex,
+        existing: existing,
+      ),
+    );
+  }
+}
+
+class _PageTabChip extends StatelessWidget {
+  final String title;
+  final Color color;
+  final bool active;
+  final bool editing;
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+
+  const _PageTabChip({
+    required this.title,
+    required this.color,
+    required this.active,
+    required this.editing,
+    required this.onTap,
+    this.onLongPress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      onLongPress: onLongPress,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: active ? color : color.withValues(alpha: 0.22),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: active ? color : color.withValues(alpha: 0.6),
+            width: 1.5,
+          ),
+        ),
+        child: Text(
+          editing && active
+              ? '${title.toUpperCase()} ✎'
+              : title.toUpperCase(),
+          style: TextStyle(
+            color: active ? Colors.black : LcarsColors.textLight,
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.3,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PageEditorDialog extends StatefulWidget {
+  final LcarsController controller;
+  final int? pageIndex;
+  final LcarsPageConfig? existing;
+
+  const _PageEditorDialog({
+    required this.controller,
+    required this.pageIndex,
+    required this.existing,
+  });
+
+  @override
+  State<_PageEditorDialog> createState() => _PageEditorDialogState();
+}
+
+class _PageEditorDialogState extends State<_PageEditorDialog> {
+  late TextEditingController _titleCtrl;
+  late String _colorToken;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleCtrl = TextEditingController(text: widget.existing?.title ?? '');
+    _colorToken = widget.existing?.accentColor ?? 'lavender';
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final canDelete = widget.pageIndex != null &&
+        widget.controller.layout.pages.length > 1;
+
+    return AlertDialog(
+      backgroundColor: const Color(0xFF111116),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: const BorderSide(color: LcarsColors.skyBlue, width: 2),
+      ),
+      title: Text(
+        widget.existing == null
+            ? l10n.dialogNewPageTitle
+            : l10n.dialogEditPageTitle,
+        style: const TextStyle(color: LcarsColors.amber, fontSize: 16),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _titleCtrl,
+            style: const TextStyle(color: LcarsColors.textLight, fontSize: 15),
+            decoration: InputDecoration(
+              labelText: l10n.fieldPageTitle,
+              hintText: 'DECK 02 • MEDIA',
+            ),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: _colorToken,
+            dropdownColor: const Color(0xFF1A1A22),
+            style: const TextStyle(color: LcarsColors.textLight, fontSize: 15),
+            decoration: InputDecoration(labelText: l10n.fieldLcarsColor),
+            items: const [
+              DropdownMenuItem(value: 'amber', child: Text('Amber (#FF9900)')),
+              DropdownMenuItem(value: 'lavender', child: Text('Lavender (#CC99CC)')),
+              DropdownMenuItem(value: 'cyan', child: Text('Sky Blue (#9999FF)')),
+              DropdownMenuItem(value: 'peach', child: Text('Peach (#FFAA66)')),
+              DropdownMenuItem(value: 'gold', child: Text('Gold (#FFCC66)')),
+              DropdownMenuItem(value: 'red_alert', child: Text('Red Alert (#CC6666)')),
+            ],
+            onChanged: (v) {
+              if (v != null) setState(() => _colorToken = v);
+            },
+          ),
+        ],
+      ),
+      actions: [
+        if (canDelete)
+          TextButton(
+            onPressed: () {
+              unawaited(widget.controller.removePage(widget.pageIndex!));
+              Navigator.of(context).pop();
+            },
+            child: Text(
+              l10n.btnRemove,
+              style: const TextStyle(color: LcarsColors.redAlert),
+            ),
+          ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.btnCancel),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: LcarsColors.amber,
+            foregroundColor: Colors.black,
+          ),
+          onPressed: () {
+            if (widget.pageIndex == null) {
+              unawaited(
+                widget.controller.addPage(
+                  title: _titleCtrl.text,
+                  accentColor: _colorToken,
+                ),
+              );
+            } else {
+              unawaited(
+                widget.controller.updatePage(
+                  widget.pageIndex!,
+                  title: _titleCtrl.text,
+                  accentColor: _colorToken,
+                ),
+              );
+            }
+            Navigator.of(context).pop();
+          },
+          child: Text(l10n.btnSavePage),
+        ),
+      ],
     );
   }
 }

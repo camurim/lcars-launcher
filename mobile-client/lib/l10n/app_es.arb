@@ -105,5 +105,10 @@
   "backupRestoredOk": "¡Respaldo restaurado con éxito!",
   "backupInvalidError": "JSON de respaldo inválido",
   "backupPushedPc": "¡Respaldo enviado al PC!",
-  "backupPulledPc": "Solicitando respaldo guardado en el PC..."
+  "backupPulledPc": "Solicitando respaldo guardado en el PC...",
+  "btnAddPage": "+ PÁGINA",
+  "dialogNewPageTitle": "NUEVA PÁGINA",
+  "dialogEditPageTitle": "EDITAR PÁGINA",
+  "fieldPageTitle": "NOMBRE DE LA PÁGINA",
+  "btnSavePage": "GUARDAR PÁGINA"
 }

@@ -64,25 +64,38 @@ void main() {
       expect(data.disks.first.mountPoint, '/');
     });
 
-    test('LcarsLayoutConfig realiza roundtrip LAYOUT_SYNC', () {
+    test('LcarsLayoutConfig realiza roundtrip LAYOUT_SYNC multi-página', () {
       const layout = LcarsLayoutConfig(
         layoutVersion: 3,
         profileName: 'BRIDGE OPS',
-        blocks: [
-          LcarsBlockConfig(
-            id: 'blk_1',
-            blockType: LcarsBlockType.action,
-            label: 'VS CODE',
-            colorToken: 'amber',
-            actionId: 'act_open_vscode',
+        pages: [
+          LcarsPageConfig(
+            id: 'page_1',
+            title: 'OPS DECK 01',
+            accentColor: 'amber',
+            blocks: [
+              LcarsBlockConfig(
+                id: 'blk_1',
+                blockType: LcarsBlockType.action,
+                label: 'VS CODE',
+                colorToken: 'amber',
+                actionId: 'act_open_vscode',
+              ),
+              LcarsBlockConfig(
+                id: 'blk_2',
+                blockType: LcarsBlockType.info,
+                label: 'STARDATE',
+                colorToken: 'lavender',
+                source: InfoSource.localDevice,
+                metricKey: 'stardate',
+              ),
+            ],
           ),
-          LcarsBlockConfig(
-            id: 'blk_2',
-            blockType: LcarsBlockType.info,
-            label: 'STARDATE',
-            colorToken: 'lavender',
-            source: InfoSource.localDevice,
-            metricKey: 'stardate',
+          LcarsPageConfig(
+            id: 'page_2',
+            title: 'MEDIA DECK',
+            accentColor: 'lavender',
+            blocks: [],
           ),
         ],
       );
@@ -92,6 +105,8 @@ void main() {
 
       expect(restored.layoutVersion, 3);
       expect(restored.profileName, 'BRIDGE OPS');
+      expect(restored.pages.length, 2);
+      expect(restored.pages[1].title, 'MEDIA DECK');
       expect(restored.blocks.length, 2);
       expect(restored.blocks[0].actionId, 'act_open_vscode');
       expect(restored.blocks[1].source, InfoSource.localDevice);
