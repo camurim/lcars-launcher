@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import '../l10n/app_localizations.dart';
 import '../protocol/lcars_protocol.dart';
 import '../services/http_panel_service.dart';
 import '../services/lcars_controller.dart';
@@ -22,6 +23,7 @@ class LcarsConsoleScreen extends StatelessWidget {
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) {
+        final l10n = AppLocalizations.of(context)!;
         final pcOnline = controller.isPcOnline;
         final editing = controller.blueprintMode;
 
@@ -37,7 +39,7 @@ class LcarsConsoleScreen extends StatelessWidget {
                     children: [
                       LcarsElbow(
                         color: editing ? LcarsColors.skyBlue : LcarsColors.amber,
-                        label: editing ? 'BLUEPRINT' : 'LCARS 47',
+                        label: editing ? l10n.blueprintHeader : 'LCARS 47',
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -51,10 +53,10 @@ class LcarsConsoleScreen extends StatelessWidget {
                                       ? LcarsColors.lavender
                                       : LcarsColors.redAlert),
                               label: pcOnline
-                                  ? '${controller.layout.profileName} • ONLINE'
+                                  ? '${controller.layout.profileName} • ${l10n.statusOnline}'
                                   : (controller.standaloneMode
-                                      ? '${controller.layout.profileName} • STANDALONE (LOCAL)'
-                                      : '${controller.layout.profileName} • STANDBY / OFFLINE'),
+                                      ? '${controller.layout.profileName} • ${l10n.statusStandalone}'
+                                      : '${controller.layout.profileName} • ${l10n.statusStandbyOffline}'),
                             ),
                             const SizedBox(height: 8),
                             Text(
@@ -86,7 +88,7 @@ class LcarsConsoleScreen extends StatelessWidget {
                           child: Column(
                             children: [
                               _SideBarTile(
-                                label: 'CONECTAR',
+                                label: l10n.sideConnect,
                                 color: LcarsColors.lavender,
                                 onTap: () {
                                   unawaited(controller.feedback.playTap());
@@ -102,8 +104,8 @@ class LcarsConsoleScreen extends StatelessWidget {
                               const SizedBox(height: 6),
                               _SideBarTile(
                                 label: controller.standaloneMode
-                                    ? 'STANDALONE'
-                                    : 'PC LINK',
+                                    ? l10n.sideStandalone
+                                    : l10n.sidePcLink,
                                 color: controller.standaloneMode
                                     ? LcarsColors.peach
                                     : LcarsColors.offlineGrey,
@@ -114,8 +116,8 @@ class LcarsConsoleScreen extends StatelessWidget {
                               const SizedBox(height: 6),
                               _SideBarTile(
                                 label: controller.keepScreenOn
-                                    ? 'TELA ATIVA'
-                                    : 'TELA AUTO',
+                                    ? l10n.sideScreenOn
+                                    : l10n.sideScreenAuto,
                                 color: controller.keepScreenOn
                                     ? LcarsColors.skyBlue
                                     : LcarsColors.offlineGrey,
@@ -125,7 +127,9 @@ class LcarsConsoleScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: 6),
                               _SideBarTile(
-                                label: editing ? 'CONCLUIR' : 'EDITAR PAINEL',
+                                label: editing
+                                    ? l10n.sideDone
+                                    : l10n.sideEditPanel,
                                 color: editing
                                     ? LcarsColors.skyBlue
                                     : LcarsColors.gold,
@@ -134,7 +138,7 @@ class LcarsConsoleScreen extends StatelessWidget {
                               if (editing) ...[
                                 const SizedBox(height: 6),
                                 _SideBarTile(
-                                  label: '+ BLOCO',
+                                  label: l10n.sideAddBlock,
                                   color: LcarsColors.peach,
                                   onTap: () => _openBlockEditor(context, null),
                                 ),
@@ -509,18 +513,6 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
   List<InstalledApp> _installedApps = const [];
   bool _loadingApps = true;
 
-  static const _pcMetrics = <String, String>{
-    'cpu.usage_percent': 'PC: Uso de CPU (%)',
-    'memory.free_gb': 'PC: RAM Livre (GB)',
-    'temperature.cpu_celsius': 'PC: Temperatura CPU (°C)',
-  };
-
-  static const _localMetrics = <String, String>{
-    'clock': 'Local: Data/Hora',
-    'stardate': 'Local: Data Estelar (Stardate)',
-    'battery_level': 'Local: Nível de Bateria',
-  };
-
   @override
   void initState() {
     super.initState();
@@ -610,6 +602,28 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final localizedControls = <String, String>{
+      'volume_up': l10n.ctrlVolumeUp,
+      'volume_down': l10n.ctrlVolumeDown,
+      'volume_mute': l10n.ctrlVolumeMute,
+      'brightness_up': l10n.ctrlBrightnessUp,
+      'brightness_down': l10n.ctrlBrightnessDown,
+      'brightness_auto': l10n.ctrlBrightnessAuto,
+      'bluetooth': l10n.ctrlBluetooth,
+      'wifi_panel': l10n.ctrlWifiPanel,
+    };
+    final pcMetricsLocalized = <String, String>{
+      'cpu.usage_percent': l10n.metricPcCpu,
+      'memory.free_gb': l10n.metricPcRamFree,
+      'temperature.cpu_celsius': l10n.metricPcTemp,
+    };
+    final localMetricsLocalized = <String, String>{
+      'clock': l10n.metricLocalClock,
+      'stardate': l10n.metricLocalStardate,
+      'battery_level': l10n.metricLocalBattery,
+    };
+
     final actions = widget.controller.availableActions;
     final hasSelectedAction =
         _selectedActionId != null && actions.any((a) => a.id == _selectedActionId);
@@ -625,13 +639,13 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
     _selectedAppPackage = safeAppPackage;
 
     final pcMetricsWithCommands = <String, String>{
-      ..._pcMetrics,
+      ...pcMetricsLocalized,
       for (final a in actions.where((a) => a.commandType == 'shell'))
-        'cmd:${a.id}': 'PC Comando: ${a.name} (${a.id})',
+        'cmd:${a.id}': 'PC CMD: ${a.name} (${a.id})',
     };
     final metricsMap = _infoSource == InfoSource.pcTelemetry
         ? pcMetricsWithCommands
-        : _localMetrics;
+        : localMetricsLocalized;
     if (!metricsMap.containsKey(_selectedMetricKey)) {
       _selectedMetricKey = metricsMap.keys.first;
     }
@@ -644,8 +658,8 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
       ),
       title: Text(
         widget.existing == null
-            ? 'BLUEPRINT • NOVO BLOCO'
-            : 'BLUEPRINT • EDITAR BLOCO',
+            ? l10n.dialogNewBlockTitle
+            : l10n.dialogEditBlockTitle,
         style: const TextStyle(color: LcarsColors.amber, fontSize: 16),
       ),
       content: SingleChildScrollView(
@@ -657,27 +671,27 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
               initialValue: _kind,
               dropdownColor: const Color(0xFF1A1A22),
               style: const TextStyle(color: LcarsColors.textLight, fontSize: 15),
-              decoration: const InputDecoration(labelText: 'TIPO DE BLOCO'),
-              items: const [
+              decoration: InputDecoration(labelText: l10n.fieldBlockType),
+              items: [
                 DropdownMenuItem(
                   value: _EditorBlockKind.pcAction,
-                  child: Text('Ação do PC (Execução Remota)'),
+                  child: Text(l10n.blockTypePcAction),
                 ),
                 DropdownMenuItem(
                   value: _EditorBlockKind.localApp,
-                  child: Text('App do Dispositivo (Abrir App Local)'),
+                  child: Text(l10n.blockTypeLocalApp),
                 ),
                 DropdownMenuItem(
                   value: _EditorBlockKind.localControl,
-                  child: Text('Controle do Dispositivo (Brilho/Volume/BT)'),
+                  child: Text(l10n.blockTypeLocalControl),
                 ),
                 DropdownMenuItem(
                   value: _EditorBlockKind.info,
-                  child: Text('Painel de Informação (PC / Local)'),
+                  child: Text(l10n.blockTypeInfo),
                 ),
                 DropdownMenuItem(
                   value: _EditorBlockKind.httpJson,
-                  child: Text('Painel HTTP / REST (JSON)'),
+                  child: Text(l10n.blockTypeHttpJson),
                 ),
               ],
               onChanged: (v) {
@@ -692,8 +706,7 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
                 dropdownColor: const Color(0xFF1A1A22),
                 style:
                     const TextStyle(color: LcarsColors.textLight, fontSize: 15),
-                decoration:
-                    const InputDecoration(labelText: 'AÇÃO SINCRONIZADA DO PC'),
+                decoration: InputDecoration(labelText: l10n.fieldPcAction),
                 items: actions
                     .map(
                       (a) => DropdownMenuItem(
@@ -717,11 +730,12 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
               )
             else if (_kind == _EditorBlockKind.localApp) ...[
               if (_loadingApps)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Text(
-                    'CARREGANDO APPS INSTALADOS...',
-                    style: TextStyle(color: LcarsColors.skyBlue, fontSize: 12),
+                    l10n.loadingApps,
+                    style: const TextStyle(
+                        color: LcarsColors.skyBlue, fontSize: 12),
                   ),
                 )
               else
@@ -732,8 +746,8 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
                   dropdownColor: const Color(0xFF1A1A22),
                   style: const TextStyle(
                       color: LcarsColors.textLight, fontSize: 15),
-                  decoration: const InputDecoration(
-                    labelText: 'APLICATIVO INSTALADO',
+                  decoration: InputDecoration(
+                    labelText: l10n.fieldInstalledApp,
                   ),
                   items: _installedApps
                       .map(
@@ -765,8 +779,8 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
                 controller: _httpUrlCtrl,
                 style:
                     const TextStyle(color: LcarsColors.textLight, fontSize: 14),
-                decoration: const InputDecoration(
-                  labelText: 'URL REST (GET JSON)',
+                decoration: InputDecoration(
+                  labelText: l10n.fieldHttpUrl,
                   hintText: 'https://economia.awesomeapi.com.br/json/last/USD-BRL',
                 ),
               ),
@@ -775,9 +789,9 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
                 controller: _httpPathCtrl,
                 style:
                     const TextStyle(color: LcarsColors.textLight, fontSize: 14),
-                decoration: const InputDecoration(
-                  labelText: 'CAMINHO DA PROPRIEDADE JSON',
-                  hintText: 'Ex.: USDBRL.bid ou current_weather.temperature',
+                decoration: InputDecoration(
+                  labelText: l10n.fieldHttpPath,
+                  hintText: 'USDBRL.bid',
                 ),
               ),
               const SizedBox(height: 10),
@@ -788,8 +802,8 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
                       controller: _httpPrefixCtrl,
                       style: const TextStyle(
                           color: LcarsColors.textLight, fontSize: 14),
-                      decoration: const InputDecoration(
-                        labelText: 'PREFIXO',
+                      decoration: InputDecoration(
+                        labelText: l10n.fieldHttpPrefix,
                         hintText: 'R\$ ',
                       ),
                     ),
@@ -800,8 +814,8 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
                       controller: _httpSuffixCtrl,
                       style: const TextStyle(
                           color: LcarsColors.textLight, fontSize: 14),
-                      decoration: const InputDecoration(
-                        labelText: 'SUFIXO',
+                      decoration: InputDecoration(
+                        labelText: l10n.fieldHttpSuffix,
                         hintText: '°C',
                       ),
                     ),
@@ -816,7 +830,9 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
                 ),
                 onPressed: _testingHttp ? null : _testHttpRequest,
                 child: Text(
-                  _testingHttp ? 'TESTANDO...' : 'TESTAR REQUISIÇÃO',
+                  _testingHttp
+                      ? l10n.testingRequestButton
+                      : l10n.testRequestButton,
                 ),
               ),
               if (_httpPreview != null) ...[
@@ -837,8 +853,8 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
                 style:
                     const TextStyle(color: LcarsColors.textLight, fontSize: 15),
                 decoration:
-                    const InputDecoration(labelText: 'CONTROLE DO DISPOSITIVO'),
-                items: kLocalDeviceControls.entries
+                    InputDecoration(labelText: l10n.fieldDeviceControl),
+                items: localizedControls.entries
                     .map(
                       (e) => DropdownMenuItem(
                         value: e.key,
@@ -851,7 +867,7 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
                   setState(() {
                     _selectedControlKey = v;
                     if (_labelCtrl.text.isEmpty) {
-                      _labelCtrl.text = kLocalDeviceControls[v] ?? v;
+                      _labelCtrl.text = localizedControls[v] ?? v;
                     }
                   });
                 },
@@ -862,15 +878,15 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
                 dropdownColor: const Color(0xFF1A1A22),
                 style:
                     const TextStyle(color: LcarsColors.textLight, fontSize: 15),
-                decoration: const InputDecoration(labelText: 'FONTE DE DADOS'),
-                items: const [
+                decoration: InputDecoration(labelText: l10n.fieldDataSource),
+                items: [
                   DropdownMenuItem(
                     value: InfoSource.pcTelemetry,
-                    child: Text('Telemetria / Comandos do PC'),
+                    child: Text(l10n.sourcePcTelemetry),
                   ),
                   DropdownMenuItem(
                     value: InfoSource.localDevice,
-                    child: Text('Sensor Local do Tablet'),
+                    child: Text(l10n.sourceLocalDevice),
                   ),
                 ],
                 onChanged: (v) {
@@ -883,7 +899,7 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
                 dropdownColor: const Color(0xFF1A1A22),
                 style:
                     const TextStyle(color: LcarsColors.textLight, fontSize: 15),
-                decoration: const InputDecoration(labelText: 'MÉTRICA'),
+                decoration: InputDecoration(labelText: l10n.fieldMetric),
                 items: metricsMap.entries
                     .map(
                       (e) => DropdownMenuItem(
@@ -901,20 +917,20 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
             TextField(
               controller: _labelCtrl,
               style: const TextStyle(color: LcarsColors.textLight, fontSize: 15),
-              decoration: const InputDecoration(labelText: 'RÓTULO NO PAINEL'),
+              decoration: InputDecoration(labelText: l10n.fieldPanelLabel),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _colorToken,
               dropdownColor: const Color(0xFF1A1A22),
               style: const TextStyle(color: LcarsColors.textLight, fontSize: 15),
-              decoration: const InputDecoration(labelText: 'COR LCARS'),
+              decoration: InputDecoration(labelText: l10n.fieldLcarsColor),
               items: const [
                 DropdownMenuItem(value: 'amber', child: Text('Amber (#FF9900)')),
-                DropdownMenuItem(value: 'lavender', child: Text('Lilás (#CC99CC)')),
-                DropdownMenuItem(value: 'cyan', child: Text('Azul-Celeste (#9999FF)')),
-                DropdownMenuItem(value: 'peach', child: Text('Pêssego (#FFAA66)')),
-                DropdownMenuItem(value: 'gold', child: Text('Dourado (#FFCC66)')),
+                DropdownMenuItem(value: 'lavender', child: Text('Lavender (#CC99CC)')),
+                DropdownMenuItem(value: 'cyan', child: Text('Sky Blue (#9999FF)')),
+                DropdownMenuItem(value: 'peach', child: Text('Peach (#FFAA66)')),
+                DropdownMenuItem(value: 'gold', child: Text('Gold (#FFCC66)')),
                 DropdownMenuItem(value: 'red_alert', child: Text('Red Alert (#CC6666)')),
               ],
               onChanged: (v) {
@@ -931,14 +947,14 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
               unawaited(widget.controller.removeBlock(widget.existing!.id));
               Navigator.of(context).pop();
             },
-            child: const Text(
-              'REMOVER',
-              style: TextStyle(color: LcarsColors.redAlert),
+            child: Text(
+              l10n.btnRemove,
+              style: const TextStyle(color: LcarsColors.redAlert),
             ),
           ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('CANCELAR'),
+          child: Text(l10n.btnCancel),
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
@@ -947,14 +963,14 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
           ),
           onPressed: () {
             final defaultLabel = switch (_kind) {
-              _EditorBlockKind.pcAction => 'AÇÃO PC',
+              _EditorBlockKind.pcAction => 'PC ACTION',
               _EditorBlockKind.localApp => _installedApps
                       .where((a) => a.packageName == _selectedAppPackage)
                       .firstOrNull
                       ?.name ??
-                  'APP LOCAL',
+                  'APP',
               _EditorBlockKind.localControl =>
-                kLocalDeviceControls[_selectedControlKey] ?? 'CONTROLE',
+                localizedControls[_selectedControlKey] ?? 'CONTROL',
               _EditorBlockKind.httpJson => 'REST JSON',
               _EditorBlockKind.info => 'SENSOR',
             };
@@ -1000,7 +1016,7 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
             unawaited(widget.controller.addOrUpdateBlock(block));
             Navigator.of(context).pop();
           },
-          child: const Text('SALVAR E SINCRONIZAR'),
+          child: Text(l10n.btnSaveSync),
         ),
       ],
     );

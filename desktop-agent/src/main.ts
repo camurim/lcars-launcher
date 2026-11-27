@@ -2,6 +2,13 @@ import "./styles.css";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import QRCode from "qrcode";
+import {
+  applyDomTranslations,
+  getLang,
+  setLang,
+  type SupportedLang,
+  t,
+} from "./i18n";
 
 interface RegisteredAction {
   id: string;
@@ -58,21 +65,19 @@ const fieldTargetEl = document.getElementById("field-target") as HTMLElement;
 const fieldArgsEl = document.getElementById("field-args") as HTMLElement;
 const fieldPresetEl = document.getElementById("field-preset") as HTMLElement;
 const actColorSelect = document.getElementById("act-color") as HTMLSelectElement;
+const langSelect = document.getElementById("lang-select") as HTMLSelectElement;
 
-const MEDIA_PRESETS: Array<{ value: string; label: string }> = [
-  { value: "volume_up", label: "Volume do PC +5%" },
-  { value: "volume_down", label: "Volume do PC -5%" },
-  { value: "volume_mute", label: "Mudo / Som (PC)" },
-  { value: "mic_mute", label: "Mutar / Ativar Microfone" },
-  { value: "play_pause", label: "Play / Pause Mídia" },
-  { value: "next_track", label: "Próxima Faixa" },
-  { value: "prev_track", label: "Faixa Anterior" },
+const MEDIA_PRESET_KEYS = [
+  "volume_up",
+  "volume_down",
+  "volume_mute",
+  "mic_mute",
+  "play_pause",
+  "next_track",
+  "prev_track",
 ];
 
-const SYSTEM_PRESETS: Array<{ value: string; label: string }> = [
-  { value: "lock_screen", label: "Bloquear Tela" },
-  { value: "suspend", label: "Suspender / Dormir PC" },
-];
+const SYSTEM_PRESET_KEYS = ["lock_screen", "suspend"];
 
 function syncCommandTypeFields(selectedPreset?: string) {
   const kind = actCommandTypeSelect.value;
@@ -83,20 +88,19 @@ function syncCommandTypeFields(selectedPreset?: string) {
   actTargetInput.required = !isPreset;
 
   if (isPreset) {
-    const list = kind === "media_key" ? MEDIA_PRESETS : SYSTEM_PRESETS;
+    const keys = kind === "media_key" ? MEDIA_PRESET_KEYS : SYSTEM_PRESET_KEYS;
     actPresetSelect.innerHTML = "";
-    for (const item of list) {
+    for (const key of keys) {
       const opt = document.createElement("option");
-      opt.value = item.value;
-      opt.textContent = item.label;
+      opt.value = key;
+      opt.textContent = t(`preset_${key}`);
       actPresetSelect.appendChild(opt);
     }
-    if (selectedPreset && list.some((i) => i.value === selectedPreset)) {
+    if (selectedPreset && keys.includes(selectedPreset)) {
       actPresetSelect.value = selectedPreset;
     }
     if (!actNameInput.value.trim()) {
-      const current = list.find((i) => i.value === actPresetSelect.value);
-      if (current) actNameInput.value = current.label.toUpperCase();
+      actNameInput.value = t(`preset_${actPresetSelect.value}`).toUpperCase();
     }
   }
 }
@@ -153,12 +157,11 @@ function resetActionForm() {
 
 function renderActions(actions: RegisteredAction[]) {
   currentActions = actions;
-  actionsCountEl.textContent = `${actions.length} ações`;
+  actionsCountEl.textContent = t("actionsCount", { n: actions.length });
   actionsListEl.innerHTML = "";
 
   if (actions.length === 0) {
-    actionsListEl.innerHTML =
-      '<li class="py-4 text-center text-xs text-zinc-500">Nenhuma ação cadastrada.</li>';
+    actionsListEl.innerHTML = `<li class="py-4 text-center text-xs text-zinc-500">${t("noActions")}</li>`;
     return;
   }
 
@@ -178,10 +181,10 @@ function renderActions(actions: RegisteredAction[]) {
       </div>
       <div class="flex items-center gap-2">
         <button data-edit="${act.id}" class="cursor-pointer rounded-lg border border-zinc-700 px-2.5 py-1 text-[11px] text-zinc-200 hover:bg-zinc-800">
-          Editar
+          ${t("btnEdit")}
         </button>
         <button data-delete="${act.id}" class="cursor-pointer rounded-lg border border-red-500/40 px-2.5 py-1 text-[11px] text-red-300 hover:bg-red-500/20">
-          Excluir
+          ${t("btnDelete")}
         </button>
       </div>
     `;
@@ -263,8 +266,7 @@ async function loadPairingInfo() {
 function renderDevices(devices: PairedDevice[]) {
   devicesListEl.innerHTML = "";
   if (devices.length === 0) {
-    devicesListEl.innerHTML =
-      '<li class="py-6 text-center text-xs text-zinc-500">Nenhum dispositivo pareado ainda. Use a aba Pareamento para autorizar um tablet ou smartphone.</li>';
+    devicesListEl.innerHTML = `<li class="py-6 text-center text-xs text-zinc-500">${t("noDevices")}</li>`;
     return;
   }
 
@@ -276,11 +278,11 @@ function renderDevices(devices: PairedDevice[]) {
       <div>
         <div class="text-sm font-bold text-cyan-200">${dev.device_name}</div>
         <div class="text-[11px] text-zinc-400 uppercase">
-          ${dev.platform} • Pareado em ${new Date(dev.paired_at).toLocaleString("pt-BR")}
+          ${dev.platform} • ${t("pairedAt")} ${new Date(dev.paired_at).toLocaleString(getLang())}
         </div>
       </div>
       <button data-revoke="${dev.device_id}" class="cursor-pointer rounded-full border border-red-500/50 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-300 hover:bg-red-500/25">
-        Revogar Acesso
+        ${t("btnRevoke")}
       </button>
     `;
     devicesListEl.appendChild(li);
@@ -317,10 +319,14 @@ tabButtons.forEach((btn) => {
 cancelEditBtn.addEventListener("click", resetActionForm);
 actCommandTypeSelect.addEventListener("change", () => syncCommandTypeFields());
 actPresetSelect.addEventListener("change", () => {
-  const list =
-    actCommandTypeSelect.value === "media_key" ? MEDIA_PRESETS : SYSTEM_PRESETS;
-  const found = list.find((i) => i.value === actPresetSelect.value);
-  if (found) actNameInput.value = found.label.toUpperCase();
+  actNameInput.value = t(`preset_${actPresetSelect.value}`).toUpperCase();
+});
+langSelect.value = getLang();
+langSelect.addEventListener("change", () => {
+  setLang(langSelect.value as SupportedLang);
+  syncCommandTypeFields(actPresetSelect.value);
+  renderActions(currentActions);
+  void loadDevices();
 });
 
 actionForm.addEventListener("submit", async (e) => {
@@ -365,7 +371,7 @@ regenPinBtn.addEventListener("click", async () => {
 
 adbReverseBtn.addEventListener("click", async () => {
   adbStatusEl.classList.remove("hidden", "text-emerald-300", "text-red-300");
-  adbStatusEl.textContent = "Configurando túnel ADB...";
+  adbStatusEl.textContent = t("adbConfiguring");
   try {
     const msg = await invoke<string>("setup_adb_reverse");
     adbStatusEl.classList.add("text-emerald-300");
@@ -388,5 +394,6 @@ listen<string>("navigate-tab", (event) => {
   // Ignora fora do runtime Tauri
 });
 
+applyDomTranslations();
 switchTab("actions");
 void loadActions();

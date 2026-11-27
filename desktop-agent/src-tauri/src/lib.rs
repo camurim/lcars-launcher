@@ -196,6 +196,20 @@ async fn setup_adb_reverse(state: State<'_, Arc<AgentState>>) -> Result<String, 
     }
 }
 
+fn tray_labels_for_system_locale() -> (&'static str, &'static str, &'static str) {
+    let locale = std::env::var("LC_ALL")
+        .or_else(|_| std::env::var("LANG"))
+        .unwrap_or_default()
+        .to_lowercase();
+    if locale.starts_with("pt") {
+        ("Configurar Ações", "Parear Dispositivo (QR Code)", "Sair")
+    } else if locale.starts_with("es") {
+        ("Configurar Acciones", "Emparejar Dispositivo (Código QR)", "Salir")
+    } else {
+        ("Configure Actions", "Pair Device (QR Code)", "Quit")
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let store = JsonStore::new(JsonStore::default_path());
@@ -225,13 +239,14 @@ pub fn run() {
             }
         })
         .setup(move |app| {
-            // 1. System Tray
-            let item_actions = MenuItemBuilder::with_id("tray_actions", "Configurar Ações")
+            // 1. System Tray (localizado em en / pt / es)
+            let (lbl_actions, lbl_pairing, lbl_quit) = tray_labels_for_system_locale();
+            let item_actions = MenuItemBuilder::with_id("tray_actions", lbl_actions)
                 .build(app)?;
             let item_pairing =
-                MenuItemBuilder::with_id("tray_pairing", "Parear Dispositivo (QR Code)")
+                MenuItemBuilder::with_id("tray_pairing", lbl_pairing)
                     .build(app)?;
-            let item_quit = MenuItemBuilder::with_id("tray_quit", "Sair").build(app)?;
+            let item_quit = MenuItemBuilder::with_id("tray_quit", lbl_quit).build(app)?;
 
             let tray_menu = MenuBuilder::new(app)
                 .items(&[&item_actions, &item_pairing, &item_quit])

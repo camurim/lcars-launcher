@@ -16,32 +16,46 @@
             <h1 class="text-lg font-bold tracking-widest text-amber-400 uppercase">
               LCARS Desktop Agent
             </h1>
-            <p id="agent-subtitle" class="text-xs text-zinc-400">
+            <p id="agent-subtitle" data-i18n="subtitle" class="text-xs text-zinc-400">
               Daemon WebSocket + mDNS • Protocolo v1.0
             </p>
           </div>
         </div>
-        <span class="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold tracking-wider text-emerald-300 uppercase">
-          Em execução na bandeja
-        </span>
+        <div class="flex items-center gap-2">
+          <select
+            id="lang-select"
+            aria-label="Language"
+            class="rounded-full border border-zinc-700 bg-zinc-950 px-3 py-1 text-xs font-semibold text-zinc-200 focus:border-amber-400 focus:outline-none"
+          >
+            <option value="en">EN</option>
+            <option value="pt">PT</option>
+            <option value="es">ES</option>
+          </select>
+          <span data-i18n="trayBadge" class="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold tracking-wider text-emerald-300 uppercase">
+            Em execução na bandeja
+          </span>
+        </div>
       </header>
 
       <!-- Navegação por 3 abas -->
       <nav class="flex gap-2 border-b border-zinc-800 pb-3" aria-label="Abas de configuração">
         <button
           data-tab="actions"
+          data-i18n="tabActions"
           class="tab-btn cursor-pointer rounded-full px-4 py-1.5 text-xs font-bold tracking-wider uppercase transition"
         >
           1. Ações
         </button>
         <button
           data-tab="pairing"
+          data-i18n="tabPairing"
           class="tab-btn cursor-pointer rounded-full px-4 py-1.5 text-xs font-bold tracking-wider uppercase transition"
         >
           2. Pareamento
         </button>
         <button
           data-tab="devices"
+          data-i18n="tabDevices"
           class="tab-btn cursor-pointer rounded-full px-4 py-1.5 text-xs font-bold tracking-wider uppercase transition"
         >
           3. Dispositivos
@@ -56,7 +70,7 @@
         >
           <input type="hidden" id="act-id" />
           <div>
-            <label for="act-name" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
+            <label for="act-name" data-i18n="labelActionName" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
               Nome da Ação
             </label>
             <input
@@ -69,7 +83,7 @@
           </div>
 
           <div>
-            <label for="act-category" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
+            <label for="act-category" data-i18n="labelCategory" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
               Categoria
             </label>
             <input
@@ -83,7 +97,7 @@
           </div>
 
           <div id="field-target" class="sm:col-span-2">
-            <label for="act-target" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
+            <label for="act-target" data-i18n="labelTarget" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
               Executável, Script ou URL
             </label>
             <input
@@ -96,7 +110,7 @@
           </div>
 
           <div id="field-preset" class="hidden sm:col-span-2">
-            <label for="act-preset" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
+            <label for="act-preset" data-i18n="labelPreset" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
               Controle Nativo do PC
             </label>
             <select
@@ -106,7 +120,7 @@
           </div>
 
           <div id="field-args">
-            <label for="act-args" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
+            <label for="act-args" data-i18n="labelArgs" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
               Argumentos (separados por espaço)
             </label>
             <input
@@ -118,22 +132,22 @@
           </div>
 
           <div>
-            <label for="act-command-type" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
+            <label for="act-command-type" data-i18n="labelExecType" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
               Tipo de Execução
             </label>
             <select
               id="act-command-type"
               class="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-amber-400 focus:outline-none"
             >
-              <option value="app_launch">Abrir App / URL (desacoplado)</option>
-              <option value="shell">Comando com Saída (exibir texto no painel)</option>
-              <option value="media_key">Controle de Áudio / Mídia (PC)</option>
-              <option value="system_power">Controle de Sistema / Energia (PC)</option>
+              <option value="app_launch" data-i18n="optAppLaunch">Abrir App / URL (desacoplado)</option>
+              <option value="shell" data-i18n="optShell">Comando com Saída (exibir texto no painel)</option>
+              <option value="media_key" data-i18n="optMediaKey">Controle de Áudio / Mídia (PC)</option>
+              <option value="system_power" data-i18n="optSystemPower">Controle de Sistema / Energia (PC)</option>
             </select>
           </div>
 
           <div>
-            <label for="act-color" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
+            <label for="act-color" data-i18n="labelColor" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
               Cor LCARS
             </label>
             <select
@@ -153,6 +167,7 @@
             <button
               type="button"
               id="btn-cancel-edit"
+              data-i18n="btnCancel"
               class="hidden cursor-pointer rounded-full border border-zinc-700 px-4 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-800"
             >
               Cancelar
@@ -160,6 +175,7 @@
             <button
               type="submit"
               id="btn-save-action"
+              data-i18n="btnSaveAction"
               class="cursor-pointer rounded-full bg-amber-400 px-5 py-1.5 text-xs font-bold tracking-wider text-black uppercase hover:bg-amber-300"
             >
               Salvar Ação
@@ -169,10 +185,10 @@
 
         <div class="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
           <div class="mb-3 flex items-center justify-between">
-            <h2 class="text-xs font-bold tracking-widest text-amber-300 uppercase">
+            <h2 data-i18n="savedActionsTitle" class="text-xs font-bold tracking-widest text-amber-300 uppercase">
               Ações Cadastradas
             </h2>
-            <span id="actions-count" class="text-xs text-zinc-400">0 ações</span>
+            <span id="actions-count" class="text-xs text-zinc-400">0</span>
           </div>
           <ul id="actions-list" class="flex flex-col gap-2"></ul>
         </div>
@@ -182,43 +198,45 @@
       <section id="panel-pairing" class="tab-panel hidden grid-cols-1 gap-5 md:grid-cols-2">
         <div class="flex flex-col justify-between gap-4 rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5">
           <div class="space-y-3">
-            <h2 class="text-xs font-bold tracking-widest text-amber-300 uppercase">
+            <h2 data-i18n="pairingTitle" class="text-xs font-bold tracking-widest text-amber-300 uppercase">
               Conexão &amp; PIN Temporário
             </h2>
             <div class="grid grid-cols-2 gap-3 text-xs">
               <div class="rounded-xl bg-zinc-950 p-3 border border-zinc-800">
-                <div class="text-zinc-400 uppercase">IP Local</div>
+                <div data-i18n="labelLocalIp" class="text-zinc-400 uppercase">IP Local</div>
                 <div id="pair-ip" class="mt-1 font-mono text-sm font-bold text-amber-200">127.0.0.1</div>
               </div>
               <div class="rounded-xl bg-zinc-950 p-3 border border-zinc-800">
-                <div class="text-zinc-400 uppercase">Porta WS</div>
+                <div data-i18n="labelWsPort" class="text-zinc-400 uppercase">Porta WS</div>
                 <div id="pair-port" class="mt-1 font-mono text-sm font-bold text-amber-200">8765</div>
               </div>
             </div>
 
             <div class="rounded-xl border border-amber-500/40 bg-zinc-950 p-4 text-center">
-              <div class="text-[11px] tracking-widest text-zinc-400 uppercase">PIN de 6 Dígitos</div>
+              <div data-i18n="labelPin6" class="text-[11px] tracking-widest text-zinc-400 uppercase">PIN de 6 Dígitos</div>
               <div id="pair-pin" class="mt-1 font-mono text-4xl font-black tracking-[0.35em] text-amber-400">
                 ------
               </div>
             </div>
 
             <p class="text-[11px] text-zinc-400">
-              mDNS ativo: <code id="pair-mdns" class="text-violet-300">_lcars-agent._tcp.local.</code><br />
+              mDNS: <code id="pair-mdns" class="text-violet-300">_lcars-agent._tcp.local.</code><br />
               USB (Android): <code class="text-cyan-300">adb reverse tcp:8765 tcp:8765</code><br />
-              <span class="text-amber-300/90">Nota: mesmo via cabo USB, informe este PIN de 6 dígitos no app mobile para parear.</span>
+              <span data-i18n="usbPinNote" class="text-amber-300/90">Nota: mesmo via cabo USB, informe este PIN de 6 dígitos no app mobile para parear.</span>
             </p>
           </div>
 
           <div class="flex flex-col gap-2">
             <button
               id="btn-regen-pin"
+              data-i18n="btnRegenPin"
               class="cursor-pointer rounded-full bg-amber-400 px-4 py-2 text-xs font-bold tracking-wider text-black uppercase hover:bg-amber-300"
             >
               Gerar Novo PIN e QR Code
             </button>
             <button
               id="btn-adb-reverse"
+              data-i18n="btnAdbReverse"
               class="cursor-pointer rounded-full border border-cyan-400/50 bg-cyan-500/10 px-4 py-2 text-xs font-bold tracking-wider text-cyan-300 uppercase hover:bg-cyan-500/20"
             >
               Ativar Túnel USB (ADB Reverse)
@@ -228,7 +246,7 @@
         </div>
 
         <div class="flex flex-col items-center justify-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5">
-          <h2 class="text-xs font-bold tracking-widest text-violet-300 uppercase">
+          <h2 data-i18n="qrTitle" class="text-xs font-bold tracking-widest text-violet-300 uppercase">
             Pareamento Rápido (QR Code)
           </h2>
           <div class="rounded-2xl bg-white p-3">
@@ -241,11 +259,12 @@
       <!-- ABA 3: DISPOSITIVOS AUTORIZADOS -->
       <section id="panel-devices" class="tab-panel hidden rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5">
         <div class="mb-4 flex items-center justify-between">
-          <h2 class="text-xs font-bold tracking-widest text-cyan-300 uppercase">
+          <h2 data-i18n="devicesTitle" class="text-xs font-bold tracking-widest text-cyan-300 uppercase">
             Tablets &amp; Smartphones Autorizados
           </h2>
           <button
             id="btn-refresh-devices"
+            data-i18n="btnRefresh"
             class="cursor-pointer rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-300 hover:bg-zinc-800"
           >
             Atualizar

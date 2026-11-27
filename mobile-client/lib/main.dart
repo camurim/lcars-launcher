@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'l10n/app_localizations.dart';
 import 'screens/lcars_console_screen.dart';
 import 'services/lcars_controller.dart';
 import 'theme/lcars_theme.dart';
@@ -35,9 +37,21 @@ class _LcarsLauncherAppState extends State<LcarsLauncherApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'LCARS Launcher',
+      onGenerateTitle: (ctx) =>
+          AppLocalizations.of(ctx)?.appTitle ?? 'LCARS Launcher',
       debugShowCheckedModeBanner: false,
       theme: buildLcarsTheme(),
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en'),
+        Locale('pt'),
+        Locale('es'),
+      ],
       home: LcarsConsoleScreen(controller: _controller),
     );
   }

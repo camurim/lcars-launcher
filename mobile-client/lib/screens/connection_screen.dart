@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import '../l10n/app_localizations.dart';
 import '../protocol/lcars_protocol.dart';
 import '../services/lcars_controller.dart';
 import '../services/lcars_transport.dart';
@@ -54,6 +55,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
   }
 
   Future<void> _activateUsbMode() async {
+    final l10n = AppLocalizations.of(context)!;
     unawaited(widget.controller.feedback.playTap());
     const usbHost = '127.0.0.1';
     final port = int.tryParse(_portCtrl.text.trim()) ?? 8765;
@@ -63,7 +65,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
       _portCtrl.text = port.toString();
       _checkingUsb = true;
       _error = null;
-      _statusMessage = 'VERIFICANDO TÚNEL USB EM $usbHost:$port...';
+      _statusMessage = l10n.usbTunnelChecking(usbHost, port);
     });
     debugPrint('[LCARS USB] Verificando túnel ADB em $usbHost:$port...');
 
@@ -80,14 +82,13 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
       if (_pinCtrl.text.trim().length == 6) {
         setState(() {
           _checkingUsb = false;
-          _statusMessage = 'TÚNEL USB ATIVO! CONECTANDO...';
+          _statusMessage = l10n.usbTunnelActiveConnecting;
         });
         await _submitPair();
       } else {
         setState(() {
           _checkingUsb = false;
-          _statusMessage =
-              'TÚNEL USB ATIVO EM $usbHost:$port! MESMO VIA USB, DIGITE O PIN DE 6 DÍGITOS DO DESKTOP AGENT ABAIXO E TOQUE EM AUTORIZAR.';
+          _statusMessage = l10n.usbTunnelActiveEnterPin(usbHost, port);
         });
         _pinFocus.requestFocus();
       }
@@ -97,18 +98,18 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
       setState(() {
         _checkingUsb = false;
         _statusMessage = null;
-        _error =
-            'Túnel USB não detectado em $usbHost:$port. No PC, execute:\nadb reverse tcp:$port tcp:$port';
+        _error = l10n.usbTunnelNotFound(usbHost, port);
       });
     }
   }
 
   Future<void> _submitPair() async {
+    final l10n = AppLocalizations.of(context)!;
     final ip = _ipCtrl.text.trim();
     final port = int.tryParse(_portCtrl.text.trim()) ?? 8765;
     final pin = _pinCtrl.text.trim();
     if (ip.isEmpty || pin.length != 6) {
-      setState(() => _error = 'Informe um IP válido e um PIN de 6 dígitos.');
+      setState(() => _error = l10n.invalidIpOrPinError);
       return;
     }
 
@@ -152,6 +153,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -182,11 +184,11 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                               },
                             ),
                             const SizedBox(width: 8),
-                            const Expanded(
+                            Expanded(
                               child: LcarsPillBar(
                                 color: LcarsColors.amber,
                                 height: 30,
-                                label: 'SUBSPACE LINK • PAREAMENTO',
+                                label: l10n.connectionHeader,
                               ),
                             ),
                           ],
@@ -198,7 +200,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                               child: LcarsPillBar(
                                 color: LcarsColors.skyBlue,
                                 capSide: LcarsCapSide.both,
-                                label: 'LER QR CODE',
+                                label: l10n.scanQrButton,
                                 onTap: _openQrScanner,
                               ),
                             ),
@@ -208,8 +210,8 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                                 color: LcarsColors.gold,
                                 capSide: LcarsCapSide.both,
                                 label: _checkingUsb
-                                    ? 'TESTANDO USB...'
-                                    : 'MODO USB (127.0.0.1)',
+                                    ? l10n.testingUsbButton
+                                    : l10n.usbModeButton,
                                 onTap: _checkingUsb ? null : _activateUsbMode,
                               ),
                             ),
@@ -225,9 +227,9 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
               Expanded(
                 child: ListView(
                   children: [
-                    const Text(
-                      'AGENTES DESCOBERTOS NA REDE (mDNS)',
-                      style: TextStyle(
+                    Text(
+                      l10n.discoveredAgentsTitle,
+                      style: const TextStyle(
                         color: LcarsColors.skyBlue,
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -242,9 +244,9 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                           border: Border.all(color: LcarsColors.offlineGrey),
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        child: const Text(
-                          'PROCURANDO _lcars-agent._tcp NA REDE LOCAL...',
-                          style: TextStyle(
+                        child: Text(
+                          l10n.searchingMdns,
+                          style: const TextStyle(
                             color: LcarsColors.textLight,
                             fontSize: 12,
                           ),
@@ -267,9 +269,9 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                         ),
                       ),
                     const SizedBox(height: 18),
-                    const Text(
-                      'CONEXÃO MANUAL / PIN DE 6 DÍGITOS',
-                      style: TextStyle(
+                    Text(
+                      l10n.manualConnectionTitle,
+                      style: const TextStyle(
                         color: LcarsColors.amber,
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -290,9 +292,9 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Text(
-                        'IMPORTANTE: MESMO NO MODO USB (127.0.0.1), O PIN DE 6 DÍGITOS EXIBIDO NO DESKTOP AGENT É OBRIGATÓRIO PARA AUTORIZAR O DISPOSITIVO.',
-                        style: TextStyle(
+                      child: Text(
+                        l10n.usbPinNotice,
+                        style: const TextStyle(
                           color: LcarsColors.gold,
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -307,14 +309,14 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                           flex: 2,
                           child: _LcarsTextField(
                             controller: _ipCtrl,
-                            label: 'ENDEREÇO IP',
+                            label: l10n.ipAddressLabel,
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: _LcarsTextField(
                             controller: _portCtrl,
-                            label: 'PORTA',
+                            label: l10n.portLabel,
                             keyboardType: TextInputType.number,
                           ),
                         ),
@@ -324,7 +326,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                     _LcarsTextField(
                       controller: _pinCtrl,
                       focusNode: _pinFocus,
-                      label: 'PIN TEMPORÁRIO (6 DÍGITOS — OBRIGATÓRIO)',
+                      label: l10n.pinLabel,
                       keyboardType: TextInputType.number,
                       maxLength: 6,
                     ),
@@ -362,7 +364,9 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                       color: LcarsColors.amber,
                       height: 44,
                       capSide: LcarsCapSide.both,
-                      label: _connecting ? 'CONECTANDO...' : 'AUTORIZAR E CONECTAR',
+                      label: _connecting
+                          ? l10n.connectingButton
+                          : l10n.authorizeConnectButton,
                       onTap: _connecting ? null : _submitPair,
                     ),
                   ],
@@ -425,6 +429,7 @@ class _QrScannerPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -435,11 +440,11 @@ class _QrScannerPage extends StatelessWidget {
                 children: [
                   const LcarsBackButton(),
                   const SizedBox(width: 8),
-                  const Expanded(
+                  Expanded(
                     child: LcarsPillBar(
                       color: LcarsColors.skyBlue,
                       height: 30,
-                      label: 'ESCANEAR QR CODE DO DESKTOP AGENT',
+                      label: l10n.qrScannerHeader,
                     ),
                   ),
                 ],
