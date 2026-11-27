@@ -82,7 +82,7 @@
             />
           </div>
 
-          <div class="sm:col-span-2">
+          <div id="field-target" class="sm:col-span-2">
             <label for="act-target" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
               Executável, Script ou URL
             </label>
@@ -95,7 +95,17 @@
             />
           </div>
 
-          <div>
+          <div id="field-preset" class="hidden sm:col-span-2">
+            <label for="act-preset" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
+              Controle Nativo do PC
+            </label>
+            <select
+              id="act-preset"
+              class="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-amber-400 focus:outline-none"
+            ></select>
+          </div>
+
+          <div id="field-args">
             <label for="act-args" class="block text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
               Argumentos (separados por espaço)
             </label>
@@ -117,6 +127,8 @@
             >
               <option value="app_launch">Abrir App / URL (desacoplado)</option>
               <option value="shell">Comando com Saída (exibir texto no painel)</option>
+              <option value="media_key">Controle de Áudio / Mídia (PC)</option>
+              <option value="system_power">Controle de Sistema / Energia (PC)</option>
             </select>
           </div>
 

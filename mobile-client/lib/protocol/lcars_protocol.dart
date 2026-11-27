@@ -212,8 +212,22 @@ class LcarsBlockConfig {
     this.metricKey,
   });
 
-  bool get dependsOnPc =>
-      blockType == LcarsBlockType.action || source == InfoSource.pcTelemetry;
+  bool get isLocalAppAction =>
+      blockType == LcarsBlockType.action &&
+      (actionId?.startsWith('local_app:') ?? false);
+
+  bool get isLocalControlAction =>
+      blockType == LcarsBlockType.action &&
+      (actionId?.startsWith('local_ctrl:') ?? false);
+
+  bool get isLocalAction => isLocalAppAction || isLocalControlAction;
+
+  bool get dependsOnPc {
+    if (blockType == LcarsBlockType.action) {
+      return !isLocalAction;
+    }
+    return source == InfoSource.pcTelemetry;
+  }
 
   LcarsBlockConfig copyWith({
     String? id,

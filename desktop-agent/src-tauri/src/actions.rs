@@ -163,6 +163,170 @@ pub fn run_capture_output(target: &str, args: &[String]) -> Result<(i32, String)
     Ok((code, truncated))
 }
 
+/// Helper para tentar múltiplos comandos Linux em ordem de fallback (PipeWire -> PulseAudio -> ALSA / playerctl).
+#[cfg(not(target_os = "windows"))]
+fn try_commands_linux(candidates: &[(&str, &[&str])]) -> Result<(), String> {
+    let mut last_err = String::new();
+    for (prog, args) in candidates {
+        match Command::new(prog)
+            .args(*args)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .output()
+        {
+            Ok(out) if out.status.success() => return Ok(()),
+            Ok(out) => {
+                let err = String::from_utf8_lossy(&out.stderr).trim().to_string();
+                last_err = format!("{prog}: {err}");
+            }
+            Err(e) => {
+                last_err = format!("{prog}: {e}");
+            }
+        }
+    }
+    Err(format!(
+        "Nenhum utilitário suportado respondeu ({last_err})"
+    ))
+}
+
+#[cfg(target_os = "windows")]
+fn send_windows_virtual_key(vk_hex: &str) -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let ps = format!(
+        "Add-Type -TypeDefinition 'using System.Runtime.InteropServices; public class K {{ [DllImport(\"user32.dll\")] public static extern void keybd_event(byte bVk, byte bScan, int dwFlags, int dwExtraInfo); }}'; [K]::keybd_event({vk_hex}, 0, 0, 0); [K]::keybd_event({vk_hex}, 0, 2, 0);"
+    );
+    let out = Command::new("powershell")
+        .args(["-NoProfile", "-Command", &ps])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .map_err(|e| format!("Falha ao enviar tecla multimídia: {e}"))?;
+    if out.status.success() {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+    }
+}
+
+/// Executa controles nativos de áudio, mídia e sistema (Linux e Windows).
+pub fn execute_system_control(control: &str) -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        match control {
+            "volume_up" => {
+                send_windows_virtual_key("0xAF")?;
+                Ok("Volume do PC aumentado".into())
+            }
+            "volume_down" => {
+                send_windows_virtual_key("0xAE")?;
+                Ok("Volume do PC diminuído".into())
+            }
+            "volume_mute" => {
+                send_windows_virtual_key("0xAD")?;
+                Ok("Mudo do PC alternado".into())
+            }
+            "play_pause" => {
+                send_windows_virtual_key("0xB3")?;
+                Ok("Play / Pause enviado".into())
+            }
+            "next_track" => {
+                send_windows_virtual_key("0xB0")?;
+                Ok("Próxima faixa".into())
+            }
+            "prev_track" => {
+                send_windows_virtual_key("0xB1")?;
+                Ok("Faixa anterior".into())
+            }
+            "lock_screen" => {
+                Command::new("rundll32.exe")
+                    .args(["user32.dll,LockWorkStation"])
+                    .spawn()
+                    .map_err(|e| format!("Falha ao bloquear tela: {e}"))?;
+                Ok("Estação bloqueada".into())
+            }
+            "suspend" => {
+                Command::new("rundll32.exe")
+                    .args(["powrprof.dll,SetSuspendState", "0,1,0"])
+                    .spawn()
+                    .map_err(|e| format!("Falha ao suspender: {e}"))?;
+                Ok("Suspendendo PC".into())
+            }
+            _ => Err(format!("Controle '{control}' não suportado no Windows")),
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        match control {
+            "volume_up" => {
+                try_commands_linux(&[
+                    ("wpctl", &["set-volume", "-l", "1.5", "@DEFAULT_AUDIO_SINK@", "5%+"]),
+                    ("pactl", &["set-sink-volume", "@DEFAULT_SINK@", "+5%"]),
+                    ("amixer", &["-D", "pulse", "sset", "Master", "5%+"]),
+                ])?;
+                Ok("Volume do PC +5%".into())
+            }
+            "volume_down" => {
+                try_commands_linux(&[
+                    ("wpctl", &["set-volume", "@DEFAULT_AUDIO_SINK@", "5%-"]),
+                    ("pactl", &["set-sink-volume", "@DEFAULT_SINK@", "-5%"]),
+                    ("amixer", &["-D", "pulse", "sset", "Master", "5%-"]),
+                ])?;
+                Ok("Volume do PC -5%".into())
+            }
+            "volume_mute" => {
+                try_commands_linux(&[
+                    ("wpctl", &["set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"]),
+                    ("pactl", &["set-sink-mute", "@DEFAULT_SINK@", "toggle"]),
+                    ("amixer", &["-D", "pulse", "sset", "Master", "toggle"]),
+                ])?;
+                Ok("Mudo do PC alternado".into())
+            }
+            "mic_mute" => {
+                try_commands_linux(&[
+                    ("wpctl", &["set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle"]),
+                    ("pactl", &["set-source-mute", "@DEFAULT_SOURCE@", "toggle"]),
+                ])?;
+                Ok("Microfone alternado (mudo/ativo)".into())
+            }
+            "play_pause" => {
+                try_commands_linux(&[
+                    ("playerctl", &["play-pause"]),
+                    ("xdotool", &["key", "XF86AudioPlay"]),
+                ])?;
+                Ok("Play / Pause enviado".into())
+            }
+            "next_track" => {
+                try_commands_linux(&[
+                    ("playerctl", &["next"]),
+                    ("xdotool", &["key", "XF86AudioNext"]),
+                ])?;
+                Ok("Próxima faixa".into())
+            }
+            "prev_track" => {
+                try_commands_linux(&[
+                    ("playerctl", &["previous"]),
+                    ("xdotool", &["key", "XF86AudioPrev"]),
+                ])?;
+                Ok("Faixa anterior".into())
+            }
+            "lock_screen" => {
+                try_commands_linux(&[
+                    ("loginctl", &["lock-session"]),
+                    ("xdg-screensaver", &["lock"]),
+                ])?;
+                Ok("Estação bloqueada".into())
+            }
+            "suspend" => {
+                try_commands_linux(&[("systemctl", &["suspend"])])?;
+                Ok("Suspendendo PC".into())
+            }
+            _ => Err(format!("Controle '{control}' desconhecido")),
+        }
+    }
+}
+
 pub fn execute_registered_action(
     actions: &[RegisteredAction],
     action_id: &str,
@@ -177,6 +341,25 @@ pub fn execute_registered_action(
             message: Some(format!("Ação '{}' não encontrada", action_id)),
         };
     };
+
+    if action.command_type == "media_key" || action.command_type == "system_power" {
+        return match execute_system_control(&action.target) {
+            Ok(msg) => ActionResultPayload {
+                action_id: action_id.to_string(),
+                status: "ok".into(),
+                exit_code: Some(0),
+                duration_ms: start.elapsed().as_millis() as u64,
+                message: Some(msg),
+            },
+            Err(err) => ActionResultPayload {
+                action_id: action_id.to_string(),
+                status: "error".into(),
+                exit_code: None,
+                duration_ms: start.elapsed().as_millis() as u64,
+                message: Some(err),
+            },
+        };
+    }
 
     if action.command_type == "shell" {
         return match run_capture_output(&action.target, &action.args) {

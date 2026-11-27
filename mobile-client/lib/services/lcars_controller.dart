@@ -7,8 +7,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../protocol/lcars_protocol.dart';
+import 'http_panel_service.dart';
 import 'lcars_feedback.dart';
 import 'lcars_transport.dart';
+import 'local_device_service.dart';
 
 /// Controlador principal de estado do Mobile Client LCARS:
 /// gerencia transporte, reconexão automática, sensores locais, layout e feedback.
@@ -18,12 +20,20 @@ class LcarsController extends ChangeNotifier {
   static const _kDeviceIdKey = 'lcars_device_id';
   static const _kLayoutKey = 'lcars_saved_layout_v1';
   static const _kKeepScreenOnKey = 'lcars_keep_screen_on';
+  static const _kStandaloneModeKey = 'lcars_standalone_mode';
+  static const List<int> _reconnectBackoffSeconds = [4, 10, 20, 40, 60];
 
   final LcarsTransport transport;
   final LcarsFeedback feedback;
+  LocalDeviceService? _localDevice;
+  HttpPanelService? _httpPanelService;
   final FlutterSecureStorage _secureStorage;
   final Battery _battery;
   final Uuid _uuid = const Uuid();
+
+  LocalDeviceService get localDevice => _localDevice ??= LocalDeviceService();
+  HttpPanelService get httpPanelService =>
+      _httpPanelService ??= HttpPanelService();
 
   LcarsConnectionStatus status = LcarsConnectionStatus.standbyOffline;
   TelemetryData telemetry = TelemetryData.empty;
@@ -122,6 +132,8 @@ class LcarsController extends ChangeNotifier {
 
   bool blueprintMode = false;
   bool keepScreenOn = true;
+  bool standaloneMode = false;
+  int _reconnectAttempts = 0;
   int batteryLevel = 100;
   DateTime now = DateTime.now();
   String statusLog = 'STANDBY / OFFLINE — CONECTE A UM DESKTOP AGENT';
@@ -130,20 +142,26 @@ class LcarsController extends ChangeNotifier {
   String? _deviceId;
   String? confirmedActionId;
   final Map<String, String> commandOutputs = {};
+  final Map<String, String> httpOutputs = {};
 
   StreamSubscription<ProtocolEnvelope>? _msgSub;
   StreamSubscription<LcarsConnectionStatus>? _statusSub;
   Timer? _clockTimer;
   Timer? _commandPollTimer;
+  Timer? _httpPollTimer;
   Timer? _reconnectTimer;
 
   LcarsController({
     LcarsTransport? transport,
     LcarsFeedback? feedback,
+    LocalDeviceService? localDevice,
+    HttpPanelService? httpPanelService,
     FlutterSecureStorage? secureStorage,
     Battery? battery,
   })  : transport = transport ?? WebSocketLcarsTransport(),
         feedback = feedback ?? LcarsFeedback(),
+        _localDevice = localDevice,
+        _httpPanelService = httpPanelService,
         _secureStorage = secureStorage ?? const FlutterSecureStorage(),
         _battery = battery ?? Battery();
 
@@ -166,15 +184,26 @@ class LcarsController extends ChangeNotifier {
 
   Future<void> initialize() async {
     await _loadLocalLayout();
-    await _loadKeepScreenOnPreference();
+    await _loadPreferences();
     await _loadSecureCredentials();
 
     _msgSub = transport.messages.listen(_handleMessage);
     _statusSub = transport.statusStream.listen((newStatus) {
+      if (standaloneMode &&
+          newStatus == LcarsConnectionStatus.standbyOffline) {
+        status = LcarsConnectionStatus.disconnected;
+        notifyListeners();
+        return;
+      }
+      final wasOnline = status == LcarsConnectionStatus.connected;
       status = newStatus;
       if (newStatus == LcarsConnectionStatus.standbyOffline) {
-        statusLog = 'CONEXÃO PERDIDA — STANDBY / OFFLINE (RECONECTANDO...)';
+        if (wasOnline || _reconnectAttempts == 0) {
+          statusLog = 'CONEXÃO PERDIDA — STANDBY / OFFLINE (RECONECTANDO...)';
+        }
         _scheduleReconnect();
+      } else if (newStatus == LcarsConnectionStatus.connected) {
+        _reconnectAttempts = 0;
       }
       notifyListeners();
     });
@@ -188,12 +217,21 @@ class LcarsController extends ChangeNotifier {
     });
 
     _commandPollTimer = Timer.periodic(const Duration(seconds: 15), (_) {
-      if (isPcOnline) {
+      if (isPcOnline && !standaloneMode) {
         unawaited(refreshCommandPanels());
       }
     });
 
-    if (_lastEndpoint != null && _authToken != null) {
+    _httpPollTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+      unawaited(refreshHttpPanels());
+    });
+    unawaited(refreshHttpPanels());
+
+    if (standaloneMode) {
+      status = LcarsConnectionStatus.disconnected;
+      statusLog = 'MODO STANDALONE ATIVO — OPERAÇÃO LOCAL';
+      notifyListeners();
+    } else if (_lastEndpoint != null && _authToken != null) {
       unawaited(connectWithSavedToken(_lastEndpoint!));
     }
   }
@@ -237,15 +275,42 @@ class LcarsController extends ChangeNotifier {
     } catch (_) {}
   }
 
-  Future<void> _loadKeepScreenOnPreference() async {
+  Future<void> _loadPreferences() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       keepScreenOn = prefs.getBool(_kKeepScreenOnKey) ?? true;
+      standaloneMode = prefs.getBool(_kStandaloneModeKey) ?? false;
     } catch (_) {
       keepScreenOn = true;
+      standaloneMode = false;
     }
     await _applyWakelock();
     notifyListeners();
+  }
+
+  Future<void> toggleStandaloneMode() async {
+    standaloneMode = !standaloneMode;
+    unawaited(feedback.playTap());
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_kStandaloneModeKey, standaloneMode);
+    } catch (_) {}
+
+    if (standaloneMode) {
+      _reconnectTimer?.cancel();
+      _reconnectAttempts = 0;
+      await transport.disconnect();
+      status = LcarsConnectionStatus.disconnected;
+      statusLog = 'MODO STANDALONE ATIVO — SEM CONEXÃO COM PC';
+      notifyListeners();
+    } else {
+      _reconnectAttempts = 0;
+      statusLog = 'PC LINK REATIVADO';
+      notifyListeners();
+      if (_lastEndpoint != null && _authToken != null) {
+        unawaited(connectWithSavedToken(_lastEndpoint!));
+      }
+    }
   }
 
   Future<void> _applyWakelock() async {
@@ -275,7 +340,13 @@ class LcarsController extends ChangeNotifier {
     required String pin,
     String deviceName = 'LCARS Tablet Console',
   }) async {
+    standaloneMode = false;
+    _reconnectAttempts = 0;
     _reconnectTimer?.cancel();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_kStandaloneModeKey, false);
+    } catch (_) {}
     _lastEndpoint = endpoint;
     statusLog = 'CONECTANDO A ${endpoint.host}:${endpoint.port}...';
     notifyListeners();
@@ -323,10 +394,15 @@ class LcarsController extends ChangeNotifier {
   }
 
   void _scheduleReconnect() {
-    if (_lastEndpoint == null || _authToken == null) return;
+    if (standaloneMode || _lastEndpoint == null || _authToken == null) return;
     _reconnectTimer?.cancel();
-    _reconnectTimer = Timer(const Duration(seconds: 4), () {
-      if (status != LcarsConnectionStatus.connected && _lastEndpoint != null) {
+    final idx = _reconnectAttempts.clamp(0, _reconnectBackoffSeconds.length - 1);
+    final delaySec = _reconnectBackoffSeconds[idx];
+    _reconnectAttempts++;
+    _reconnectTimer = Timer(Duration(seconds: delaySec), () {
+      if (!standaloneMode &&
+          status != LcarsConnectionStatus.connected &&
+          _lastEndpoint != null) {
         unawaited(connectWithSavedToken(_lastEndpoint!));
       }
     });
@@ -336,6 +412,32 @@ class LcarsController extends ChangeNotifier {
     if (!silent) {
       await feedback.playTap();
     }
+
+    // Ações locais do próprio dispositivo funcionam mesmo com o PC offline
+    if (actionId.startsWith('local_app:') ||
+        actionId.startsWith('local_ctrl:')) {
+      try {
+        final msg = actionId.startsWith('local_app:')
+            ? await localDevice.launchApp(actionId.substring('local_app:'.length))
+            : await localDevice.runControl(actionId.substring('local_ctrl:'.length));
+        confirmedActionId = actionId;
+        statusLog = 'DISPOSITIVO: $msg';
+        if (!silent) unawaited(feedback.playConfirm());
+        notifyListeners();
+        Timer(const Duration(milliseconds: 700), () {
+          if (confirmedActionId == actionId) {
+            confirmedActionId = null;
+            notifyListeners();
+          }
+        });
+      } catch (err) {
+        statusLog = 'ERRO LOCAL: $err';
+        if (!silent) unawaited(feedback.playError());
+        notifyListeners();
+      }
+      return;
+    }
+
     if (!isPcOnline) {
       if (!silent) {
         await feedback.playError();
@@ -373,6 +475,44 @@ class LcarsController extends ChangeNotifier {
     }
   }
 
+  /// Atualiza todos os painéis HTTP/REST (`http:{...}`) de forma independente do PC.
+  Future<void> refreshHttpPanels() async {
+    for (final blk in layout.blocks) {
+      if (blk.blockType == LcarsBlockType.info &&
+          (blk.metricKey?.startsWith('http:') ?? false)) {
+        await refreshSingleHttpPanel(blk, silent: true);
+      }
+    }
+  }
+
+  Future<void> refreshSingleHttpPanel(
+    LcarsBlockConfig blk, {
+    bool silent = false,
+  }) async {
+    final cfg = HttpPanelConfig.tryParseMetricKey(blk.metricKey);
+    if (cfg == null) return;
+    if (!silent) {
+      unawaited(feedback.playTap());
+      httpOutputs[blk.id] = 'CARREGANDO...';
+      notifyListeners();
+    }
+    try {
+      final value = await httpPanelService.fetchValue(cfg);
+      httpOutputs[blk.id] = value;
+      if (!silent) {
+        statusLog = 'HTTP [${blk.label}]: $value';
+        unawaited(feedback.playConfirm());
+      }
+    } catch (err) {
+      httpOutputs[blk.id] = 'ERRO HTTP';
+      if (!silent) {
+        statusLog = 'ERRO HTTP [${blk.label}]: $err';
+        unawaited(feedback.playError());
+      }
+    }
+    notifyListeners();
+  }
+
   void toggleBlueprintMode() {
     blueprintMode = !blueprintMode;
     unawaited(feedback.playTap());
@@ -393,12 +533,37 @@ class LcarsController extends ChangeNotifier {
         block.metricKey!.startsWith('cmd:') &&
         isPcOnline) {
       unawaited(executeAction(block.metricKey!.substring(4), silent: true));
+    } else if (block.blockType == LcarsBlockType.info &&
+        (block.metricKey?.startsWith('http:') ?? false)) {
+      unawaited(refreshSingleHttpPanel(block, silent: true));
     }
   }
 
   Future<void> removeBlock(String blockId) async {
     final updated = layout.blocks.where((b) => b.id != blockId).toList();
     await _commitLayout(updated);
+  }
+
+  Future<void> reorderBlock(int fromIndex, int toIndex) async {
+    final blocks = layout.blocks;
+    if (fromIndex < 0 ||
+        fromIndex >= blocks.length ||
+        toIndex < 0 ||
+        toIndex >= blocks.length ||
+        fromIndex == toIndex) {
+      return;
+    }
+    unawaited(feedback.playTap());
+    final updated = List<LcarsBlockConfig>.from(blocks);
+    final moved = updated.removeAt(fromIndex);
+    updated.insert(toIndex, moved);
+    await _commitLayout(updated);
+  }
+
+  Future<void> moveBlockByDelta(int index, int delta) async {
+    final target = index + delta;
+    if (target < 0 || target >= layout.blocks.length) return;
+    await reorderBlock(index, target);
   }
 
   Future<void> _commitLayout(List<LcarsBlockConfig> updatedBlocks) async {
@@ -457,6 +622,7 @@ class LcarsController extends ChangeNotifier {
         final validIds = availableActions.map((a) => a.id).toSet();
         final filteredBlocks = layout.blocks
             .where((b) =>
+                !b.dependsOnPc ||
                 b.blockType != LcarsBlockType.action ||
                 (b.actionId != null && validIds.contains(b.actionId)))
             .toList();
@@ -511,6 +677,7 @@ class LcarsController extends ChangeNotifier {
   void dispose() {
     _clockTimer?.cancel();
     _commandPollTimer?.cancel();
+    _httpPollTimer?.cancel();
     _reconnectTimer?.cancel();
     unawaited(_msgSub?.cancel());
     unawaited(_statusSub?.cancel());

@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../protocol/lcars_protocol.dart';
+import '../services/http_panel_service.dart';
 import '../services/lcars_controller.dart';
+import '../services/local_device_service.dart';
 import '../theme/lcars_theme.dart';
 import '../widgets/lcars_button.dart';
 import '../widgets/lcars_elbow.dart';
@@ -45,10 +47,14 @@ class LcarsConsoleScreen extends StatelessWidget {
                             LcarsPillBar(
                               color: pcOnline
                                   ? LcarsColors.peach
-                                  : LcarsColors.redAlert,
+                                  : (controller.standaloneMode
+                                      ? LcarsColors.lavender
+                                      : LcarsColors.redAlert),
                               label: pcOnline
                                   ? '${controller.layout.profileName} • ONLINE'
-                                  : '${controller.layout.profileName} • STANDBY / OFFLINE',
+                                  : (controller.standaloneMode
+                                      ? '${controller.layout.profileName} • STANDALONE (LOCAL)'
+                                      : '${controller.layout.profileName} • STANDBY / OFFLINE'),
                             ),
                             const SizedBox(height: 8),
                             Text(
@@ -92,6 +98,18 @@ class LcarsConsoleScreen extends StatelessWidget {
                                     ),
                                   );
                                 },
+                              ),
+                              const SizedBox(height: 6),
+                              _SideBarTile(
+                                label: controller.standaloneMode
+                                    ? 'STANDALONE'
+                                    : 'PC LINK',
+                                color: controller.standaloneMode
+                                    ? LcarsColors.peach
+                                    : LcarsColors.offlineGrey,
+                                onTap: () => unawaited(
+                                  controller.toggleStandaloneMode(),
+                                ),
                               ),
                               const SizedBox(height: 6),
                               _SideBarTile(
@@ -156,7 +174,13 @@ class LcarsConsoleScreen extends StatelessWidget {
                                 itemCount: blocks.length,
                                 itemBuilder: (context, index) {
                                   final blk = blocks[index];
-                                  return _buildGridBlock(context, blk, index);
+                                  return _buildGridBlock(
+                                    context,
+                                    blk,
+                                    index,
+                                    cols,
+                                    blocks.length,
+                                  );
                                 },
                               );
                             },
@@ -178,16 +202,19 @@ class LcarsConsoleScreen extends StatelessWidget {
     BuildContext context,
     LcarsBlockConfig blk,
     int index,
+    int cols,
+    int totalCount,
   ) {
     final editing = controller.blueprintMode;
     final color = LcarsColors.fromToken(blk.colorToken);
 
+    Widget blockWidget;
     if (blk.blockType == LcarsBlockType.action) {
-      return LcarsButton(
+      blockWidget = LcarsButton(
         label: blk.label,
-        code: '47-${100 + index}',
+        code: blk.isLocalAction ? 'DEV-${100 + index}' : '47-${100 + index}',
         color: color,
-        offline: !controller.isPcOnline,
+        offline: blk.dependsOnPc && !controller.isPcOnline,
         confirmed: controller.confirmedActionId == blk.actionId,
         blueprintMode: editing,
         onPressed: () {
@@ -202,37 +229,125 @@ class LcarsConsoleScreen extends StatelessWidget {
           _openBlockEditor(context, blk);
         },
       );
+    } else {
+      // Painel de Informação (Read-Only): PC (telemetria/comando), HTTP REST ou Local
+      final isPcMetric = blk.source == InfoSource.pcTelemetry;
+      final isCommandOutput =
+          blk.metricKey != null && blk.metricKey!.startsWith('cmd:');
+      final isHttpPanel =
+          blk.metricKey != null && blk.metricKey!.startsWith('http:');
+      final resolved = _resolveInfoMetric(blk);
+
+      blockWidget = LcarsInfoPanel(
+        label: blk.label,
+        value: resolved.value,
+        progress: resolved.progress,
+        sourceTag: isHttpPanel
+            ? 'HTTP'
+            : (isCommandOutput ? 'CMD' : (isPcMetric ? 'PC' : 'LOCAL')),
+        color: color,
+        offline: isPcMetric && !controller.isPcOnline,
+        blueprintMode: editing,
+        onTap: editing
+            ? () => _openBlockEditor(context, blk)
+            : (isHttpPanel
+                ? () => unawaited(controller.refreshSingleHttpPanel(blk))
+                : (isCommandOutput
+                    ? () => unawaited(
+                          controller.executeAction(blk.metricKey!.substring(4)),
+                        )
+                    : null)),
+        onLongPress: () {
+          if (!editing) controller.toggleBlueprintMode();
+          _openBlockEditor(context, blk);
+        },
+      );
     }
 
-    // Painel de Informação (Read-Only): PC (telemetria ou saída de comando) ou Local
-    final isPcMetric = blk.source == InfoSource.pcTelemetry;
-    final isCommandOutput =
-        blk.metricKey != null && blk.metricKey!.startsWith('cmd:');
-    final resolved = _resolveInfoMetric(blk.metricKey);
+    if (!editing) return blockWidget;
 
-    return LcarsInfoPanel(
-      label: blk.label,
-      value: resolved.value,
-      progress: resolved.progress,
-      sourceTag: isCommandOutput ? 'CMD' : (isPcMetric ? 'PC' : 'LOCAL'),
-      color: color,
-      offline: isPcMetric && !controller.isPcOnline,
-      blueprintMode: editing,
-      onTap: editing
-          ? () => _openBlockEditor(context, blk)
-          : (isCommandOutput
-              ? () => unawaited(
-                    controller.executeAction(blk.metricKey!.substring(4)),
+    final canLeft = index > 0;
+    final canRight = index < totalCount - 1;
+    final canUp = index - cols >= 0;
+    final canDown = index + cols < totalCount;
+
+    return DragTarget<int>(
+      onWillAcceptWithDetails: (details) => details.data != index,
+      onAcceptWithDetails: (details) {
+        unawaited(controller.reorderBlock(details.data, index));
+      },
+      builder: (context, candidateData, _) {
+        final isHovering = candidateData.isNotEmpty;
+        return Draggable<int>(
+          data: index,
+          feedback: Material(
+            color: Colors.transparent,
+            child: Opacity(
+              opacity: 0.85,
+              child: SizedBox(width: 180, height: 110, child: blockWidget),
+            ),
+          ),
+          childWhenDragging: Opacity(opacity: 0.3, child: blockWidget),
+          child: Container(
+            decoration: isHovering
+                ? BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: LcarsColors.amber, width: 3),
                   )
-              : null),
-      onLongPress: () {
-        if (!editing) controller.toggleBlueprintMode();
-        _openBlockEditor(context, blk);
+                : null,
+            child: Stack(
+              children: [
+                Positioned.fill(child: blockWidget),
+                Positioned(
+                  left: 6,
+                  bottom: 6,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _MoveArrowChip(
+                        symbol: '◄',
+                        enabled: canLeft,
+                        onTap: () =>
+                            unawaited(controller.moveBlockByDelta(index, -1)),
+                      ),
+                      const SizedBox(width: 3),
+                      _MoveArrowChip(
+                        symbol: '▲',
+                        enabled: canUp,
+                        onTap: () => unawaited(
+                            controller.moveBlockByDelta(index, -cols)),
+                      ),
+                      const SizedBox(width: 3),
+                      _MoveArrowChip(
+                        symbol: '▼',
+                        enabled: canDown,
+                        onTap: () => unawaited(
+                            controller.moveBlockByDelta(index, cols)),
+                      ),
+                      const SizedBox(width: 3),
+                      _MoveArrowChip(
+                        symbol: '►',
+                        enabled: canRight,
+                        onTap: () =>
+                            unawaited(controller.moveBlockByDelta(index, 1)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
       },
     );
   }
 
-  ({String value, double? progress}) _resolveInfoMetric(String? metricKey) {
+  ({String value, double? progress}) _resolveInfoMetric(LcarsBlockConfig blk) {
+    final metricKey = blk.metricKey;
+    if (metricKey != null && metricKey.startsWith('http:')) {
+      final output = controller.httpOutputs[blk.id];
+      return (value: output ?? 'TOQUE P/ ATUALIZAR', progress: null);
+    }
     if (metricKey != null && metricKey.startsWith('cmd:')) {
       final actionId = metricKey.substring(4);
       final output = controller.commandOutputs[actionId];
@@ -279,6 +394,52 @@ class LcarsConsoleScreen extends StatelessWidget {
   }
 }
 
+class _MoveArrowChip extends StatelessWidget {
+  final String symbol;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _MoveArrowChip({
+    required this.symbol,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        width: 24,
+        height: 24,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: enabled
+              ? Colors.black.withValues(alpha: 0.78)
+              : Colors.black.withValues(alpha: 0.30),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: enabled
+                ? LcarsColors.skyBlue
+                : LcarsColors.offlineGrey.withValues(alpha: 0.5),
+            width: 1,
+          ),
+        ),
+        child: Text(
+          symbol,
+          style: TextStyle(
+            color: enabled
+                ? LcarsColors.skyBlue
+                : LcarsColors.textLight.withValues(alpha: 0.25),
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _SideBarTile extends StatelessWidget {
   final String label;
   final Color color;
@@ -315,6 +476,8 @@ class _SideBarTile extends StatelessWidget {
   }
 }
 
+enum _EditorBlockKind { pcAction, info, httpJson, localApp, localControl }
+
 class _BlueprintBlockDialog extends StatefulWidget {
   final LcarsController controller;
   final LcarsBlockConfig? existing;
@@ -329,12 +492,22 @@ class _BlueprintBlockDialog extends StatefulWidget {
 }
 
 class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
-  late LcarsBlockType _type;
+  late _EditorBlockKind _kind;
   late InfoSource _infoSource;
   late String _colorToken;
   late TextEditingController _labelCtrl;
+  late TextEditingController _httpUrlCtrl;
+  late TextEditingController _httpPathCtrl;
+  late TextEditingController _httpPrefixCtrl;
+  late TextEditingController _httpSuffixCtrl;
+  String? _httpPreview;
+  bool _testingHttp = false;
   String? _selectedActionId;
   String _selectedMetricKey = 'cpu.usage_percent';
+  String? _selectedAppPackage;
+  String _selectedControlKey = kLocalDeviceControls.keys.first;
+  List<InstalledApp> _installedApps = const [];
+  bool _loadingApps = true;
 
   static const _pcMetrics = <String, String>{
     'cpu.usage_percent': 'PC: Uso de CPU (%)',
@@ -352,22 +525,87 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
   void initState() {
     super.initState();
     final e = widget.existing;
-    _type = e?.blockType ?? LcarsBlockType.action;
+    final existingHttp = HttpPanelConfig.tryParseMetricKey(e?.metricKey);
+    if (e == null) {
+      _kind = _EditorBlockKind.pcAction;
+    } else if (existingHttp != null) {
+      _kind = _EditorBlockKind.httpJson;
+    } else if (e.isLocalAppAction) {
+      _kind = _EditorBlockKind.localApp;
+      _selectedAppPackage = e.actionId!.substring('local_app:'.length);
+    } else if (e.isLocalControlAction) {
+      _kind = _EditorBlockKind.localControl;
+      _selectedControlKey = e.actionId!.substring('local_ctrl:'.length);
+      if (!kLocalDeviceControls.containsKey(_selectedControlKey)) {
+        _selectedControlKey = kLocalDeviceControls.keys.first;
+      }
+    } else if (e.blockType == LcarsBlockType.info) {
+      _kind = _EditorBlockKind.info;
+    } else {
+      _kind = _EditorBlockKind.pcAction;
+    }
+
     _infoSource = e?.source ?? InfoSource.pcTelemetry;
     _colorToken = e?.colorToken ?? 'amber';
     _labelCtrl = TextEditingController(text: e?.label ?? '');
-    _selectedActionId = e?.actionId ??
-        (widget.controller.availableActions.isNotEmpty
+    _httpUrlCtrl = TextEditingController(text: existingHttp?.url ?? '');
+    _httpPathCtrl = TextEditingController(text: existingHttp?.jsonPath ?? '');
+    _httpPrefixCtrl = TextEditingController(text: existingHttp?.prefix ?? '');
+    _httpSuffixCtrl = TextEditingController(text: existingHttp?.suffix ?? '');
+    _selectedActionId = (e != null && !e.isLocalAction)
+        ? e.actionId
+        : (widget.controller.availableActions.isNotEmpty
             ? widget.controller.availableActions.first.id
             : null);
     _selectedMetricKey = e?.metricKey ??
         (_infoSource == InfoSource.pcTelemetry ? 'cpu.usage_percent' : 'clock');
+
+    unawaited(_loadInstalledApps());
+  }
+
+  Future<void> _loadInstalledApps() async {
+    final apps = await widget.controller.localDevice.listInstalledApps();
+    if (!mounted) return;
+    setState(() {
+      _installedApps = apps;
+      _loadingApps = false;
+      if (_selectedAppPackage == null ||
+          !apps.any((a) => a.packageName == _selectedAppPackage)) {
+        _selectedAppPackage =
+            apps.isNotEmpty ? apps.first.packageName : null;
+      }
+    });
   }
 
   @override
   void dispose() {
     _labelCtrl.dispose();
+    _httpUrlCtrl.dispose();
+    _httpPathCtrl.dispose();
+    _httpPrefixCtrl.dispose();
+    _httpSuffixCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _testHttpRequest() async {
+    final cfg = HttpPanelConfig(
+      url: _httpUrlCtrl.text.trim(),
+      jsonPath: _httpPathCtrl.text.trim(),
+      prefix: _httpPrefixCtrl.text,
+      suffix: _httpSuffixCtrl.text,
+    );
+    setState(() {
+      _testingHttp = true;
+      _httpPreview = 'CONSULTANDO...';
+    });
+    try {
+      final res = await widget.controller.httpPanelService.fetchValue(cfg);
+      if (mounted) setState(() => _httpPreview = 'RESULTADO: $res');
+    } catch (err) {
+      if (mounted) setState(() => _httpPreview = 'ERRO: $err');
+    } finally {
+      if (mounted) setState(() => _testingHttp = false);
+    }
   }
 
   @override
@@ -379,6 +617,13 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
         ? _selectedActionId
         : (actions.isNotEmpty ? actions.first.id : null);
     _selectedActionId = safeActionId;
+
+    final safeAppPackage = (_selectedAppPackage != null &&
+            _installedApps.any((a) => a.packageName == _selectedAppPackage))
+        ? _selectedAppPackage
+        : (_installedApps.isNotEmpty ? _installedApps.first.packageName : null);
+    _selectedAppPackage = safeAppPackage;
+
     final pcMetricsWithCommands = <String, String>{
       ..._pcMetrics,
       for (final a in actions.where((a) => a.commandType == 'shell'))
@@ -408,27 +653,39 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            DropdownButtonFormField<LcarsBlockType>(
-              initialValue: _type,
+            DropdownButtonFormField<_EditorBlockKind>(
+              initialValue: _kind,
               dropdownColor: const Color(0xFF1A1A22),
               style: const TextStyle(color: LcarsColors.textLight, fontSize: 15),
               decoration: const InputDecoration(labelText: 'TIPO DE BLOCO'),
               items: const [
                 DropdownMenuItem(
-                  value: LcarsBlockType.action,
-                  child: Text('Painel de Execução (Ação do PC)'),
+                  value: _EditorBlockKind.pcAction,
+                  child: Text('Ação do PC (Execução Remota)'),
                 ),
                 DropdownMenuItem(
-                  value: LcarsBlockType.info,
-                  child: Text('Painel de Informação (Read-Only)'),
+                  value: _EditorBlockKind.localApp,
+                  child: Text('App do Dispositivo (Abrir App Local)'),
+                ),
+                DropdownMenuItem(
+                  value: _EditorBlockKind.localControl,
+                  child: Text('Controle do Dispositivo (Brilho/Volume/BT)'),
+                ),
+                DropdownMenuItem(
+                  value: _EditorBlockKind.info,
+                  child: Text('Painel de Informação (PC / Local)'),
+                ),
+                DropdownMenuItem(
+                  value: _EditorBlockKind.httpJson,
+                  child: Text('Painel HTTP / REST (JSON)'),
                 ),
               ],
               onChanged: (v) {
-                if (v != null) setState(() => _type = v);
+                if (v != null) setState(() => _kind = v);
               },
             ),
             const SizedBox(height: 12),
-            if (_type == LcarsBlockType.action)
+            if (_kind == _EditorBlockKind.pcAction)
               DropdownButtonFormField<String>(
                 key: ValueKey(safeActionId),
                 initialValue: safeActionId,
@@ -458,6 +715,147 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
                         });
                       },
               )
+            else if (_kind == _EditorBlockKind.localApp) ...[
+              if (_loadingApps)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    'CARREGANDO APPS INSTALADOS...',
+                    style: TextStyle(color: LcarsColors.skyBlue, fontSize: 12),
+                  ),
+                )
+              else
+                DropdownButtonFormField<String>(
+                  key: ValueKey(safeAppPackage),
+                  initialValue: safeAppPackage,
+                  isExpanded: true,
+                  dropdownColor: const Color(0xFF1A1A22),
+                  style: const TextStyle(
+                      color: LcarsColors.textLight, fontSize: 15),
+                  decoration: const InputDecoration(
+                    labelText: 'APLICATIVO INSTALADO',
+                  ),
+                  items: _installedApps
+                      .map(
+                        (app) => DropdownMenuItem(
+                          value: app.packageName,
+                          child: Text(
+                            app.name,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: _installedApps.isEmpty
+                      ? null
+                      : (pkg) {
+                          setState(() {
+                            _selectedAppPackage = pkg;
+                            final match = _installedApps
+                                .where((a) => a.packageName == pkg)
+                                .firstOrNull;
+                            if (match != null && _labelCtrl.text.isEmpty) {
+                              _labelCtrl.text = match.name;
+                            }
+                          });
+                        },
+                ),
+            ] else if (_kind == _EditorBlockKind.httpJson) ...[
+              TextField(
+                controller: _httpUrlCtrl,
+                style:
+                    const TextStyle(color: LcarsColors.textLight, fontSize: 14),
+                decoration: const InputDecoration(
+                  labelText: 'URL REST (GET JSON)',
+                  hintText: 'https://economia.awesomeapi.com.br/json/last/USD-BRL',
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _httpPathCtrl,
+                style:
+                    const TextStyle(color: LcarsColors.textLight, fontSize: 14),
+                decoration: const InputDecoration(
+                  labelText: 'CAMINHO DA PROPRIEDADE JSON',
+                  hintText: 'Ex.: USDBRL.bid ou current_weather.temperature',
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _httpPrefixCtrl,
+                      style: const TextStyle(
+                          color: LcarsColors.textLight, fontSize: 14),
+                      decoration: const InputDecoration(
+                        labelText: 'PREFIXO',
+                        hintText: 'R\$ ',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _httpSuffixCtrl,
+                      style: const TextStyle(
+                          color: LcarsColors.textLight, fontSize: 14),
+                      decoration: const InputDecoration(
+                        labelText: 'SUFIXO',
+                        hintText: '°C',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: LcarsColors.skyBlue,
+                  side: const BorderSide(color: LcarsColors.skyBlue),
+                ),
+                onPressed: _testingHttp ? null : _testHttpRequest,
+                child: Text(
+                  _testingHttp ? 'TESTANDO...' : 'TESTAR REQUISIÇÃO',
+                ),
+              ),
+              if (_httpPreview != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  _httpPreview!,
+                  style: const TextStyle(
+                    color: LcarsColors.gold,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ] else if (_kind == _EditorBlockKind.localControl)
+              DropdownButtonFormField<String>(
+                initialValue: _selectedControlKey,
+                dropdownColor: const Color(0xFF1A1A22),
+                style:
+                    const TextStyle(color: LcarsColors.textLight, fontSize: 15),
+                decoration:
+                    const InputDecoration(labelText: 'CONTROLE DO DISPOSITIVO'),
+                items: kLocalDeviceControls.entries
+                    .map(
+                      (e) => DropdownMenuItem(
+                        value: e.key,
+                        child: Text(e.value),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (v) {
+                  if (v == null) return;
+                  setState(() {
+                    _selectedControlKey = v;
+                    if (_labelCtrl.text.isEmpty) {
+                      _labelCtrl.text = kLocalDeviceControls[v] ?? v;
+                    }
+                  });
+                },
+              )
             else ...[
               DropdownButtonFormField<InfoSource>(
                 initialValue: _infoSource,
@@ -468,7 +866,7 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
                 items: const [
                   DropdownMenuItem(
                     value: InfoSource.pcTelemetry,
-                    child: Text('Telemetria do PC'),
+                    child: Text('Telemetria / Comandos do PC'),
                   ),
                   DropdownMenuItem(
                     value: InfoSource.localDevice,
@@ -548,18 +946,56 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
             foregroundColor: Colors.black,
           ),
           onPressed: () {
+            final defaultLabel = switch (_kind) {
+              _EditorBlockKind.pcAction => 'AÇÃO PC',
+              _EditorBlockKind.localApp => _installedApps
+                      .where((a) => a.packageName == _selectedAppPackage)
+                      .firstOrNull
+                      ?.name ??
+                  'APP LOCAL',
+              _EditorBlockKind.localControl =>
+                kLocalDeviceControls[_selectedControlKey] ?? 'CONTROLE',
+              _EditorBlockKind.httpJson => 'REST JSON',
+              _EditorBlockKind.info => 'SENSOR',
+            };
             final label = _labelCtrl.text.trim().isEmpty
-                ? (_type == LcarsBlockType.action ? 'AÇÃO' : 'SENSOR')
+                ? defaultLabel
                 : _labelCtrl.text.trim();
+
+            final resolvedActionId = switch (_kind) {
+              _EditorBlockKind.pcAction => _selectedActionId,
+              _EditorBlockKind.localApp => _selectedAppPackage != null
+                  ? 'local_app:$_selectedAppPackage'
+                  : null,
+              _EditorBlockKind.localControl =>
+                'local_ctrl:$_selectedControlKey',
+              _EditorBlockKind.info || _EditorBlockKind.httpJson => null,
+            };
+
+            final isInfoBlock =
+                _kind == _EditorBlockKind.info || _kind == _EditorBlockKind.httpJson;
+            final resolvedSource = _kind == _EditorBlockKind.httpJson
+                ? InfoSource.localDevice
+                : (_kind == _EditorBlockKind.info ? _infoSource : null);
+            final resolvedMetricKey = _kind == _EditorBlockKind.httpJson
+                ? HttpPanelConfig(
+                    url: _httpUrlCtrl.text.trim(),
+                    jsonPath: _httpPathCtrl.text.trim(),
+                    prefix: _httpPrefixCtrl.text,
+                    suffix: _httpSuffixCtrl.text,
+                  ).toMetricKey()
+                : (_kind == _EditorBlockKind.info ? _selectedMetricKey : null);
+
             final block = LcarsBlockConfig(
-              id: widget.existing?.id ?? 'blk_${const Uuid().v4().substring(0, 8)}',
-              blockType: _type,
+              id: widget.existing?.id ??
+                  'blk_${const Uuid().v4().substring(0, 8)}',
+              blockType:
+                  isInfoBlock ? LcarsBlockType.info : LcarsBlockType.action,
               label: label,
               colorToken: _colorToken,
-              actionId: _type == LcarsBlockType.action ? _selectedActionId : null,
-              source: _type == LcarsBlockType.info ? _infoSource : null,
-              metricKey:
-                  _type == LcarsBlockType.info ? _selectedMetricKey : null,
+              actionId: resolvedActionId,
+              source: resolvedSource,
+              metricKey: resolvedMetricKey,
             );
             unawaited(widget.controller.addOrUpdateBlock(block));
             Navigator.of(context).pop();

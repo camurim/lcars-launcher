@@ -53,7 +53,53 @@ const actCategoryInput = document.getElementById("act-category") as HTMLInputEle
 const actTargetInput = document.getElementById("act-target") as HTMLInputElement;
 const actArgsInput = document.getElementById("act-args") as HTMLInputElement;
 const actCommandTypeSelect = document.getElementById("act-command-type") as HTMLSelectElement;
+const actPresetSelect = document.getElementById("act-preset") as HTMLSelectElement;
+const fieldTargetEl = document.getElementById("field-target") as HTMLElement;
+const fieldArgsEl = document.getElementById("field-args") as HTMLElement;
+const fieldPresetEl = document.getElementById("field-preset") as HTMLElement;
 const actColorSelect = document.getElementById("act-color") as HTMLSelectElement;
+
+const MEDIA_PRESETS: Array<{ value: string; label: string }> = [
+  { value: "volume_up", label: "Volume do PC +5%" },
+  { value: "volume_down", label: "Volume do PC -5%" },
+  { value: "volume_mute", label: "Mudo / Som (PC)" },
+  { value: "mic_mute", label: "Mutar / Ativar Microfone" },
+  { value: "play_pause", label: "Play / Pause Mídia" },
+  { value: "next_track", label: "Próxima Faixa" },
+  { value: "prev_track", label: "Faixa Anterior" },
+];
+
+const SYSTEM_PRESETS: Array<{ value: string; label: string }> = [
+  { value: "lock_screen", label: "Bloquear Tela" },
+  { value: "suspend", label: "Suspender / Dormir PC" },
+];
+
+function syncCommandTypeFields(selectedPreset?: string) {
+  const kind = actCommandTypeSelect.value;
+  const isPreset = kind === "media_key" || kind === "system_power";
+  fieldTargetEl.classList.toggle("hidden", isPreset);
+  fieldArgsEl.classList.toggle("hidden", isPreset);
+  fieldPresetEl.classList.toggle("hidden", !isPreset);
+  actTargetInput.required = !isPreset;
+
+  if (isPreset) {
+    const list = kind === "media_key" ? MEDIA_PRESETS : SYSTEM_PRESETS;
+    actPresetSelect.innerHTML = "";
+    for (const item of list) {
+      const opt = document.createElement("option");
+      opt.value = item.value;
+      opt.textContent = item.label;
+      actPresetSelect.appendChild(opt);
+    }
+    if (selectedPreset && list.some((i) => i.value === selectedPreset)) {
+      actPresetSelect.value = selectedPreset;
+    }
+    if (!actNameInput.value.trim()) {
+      const current = list.find((i) => i.value === actPresetSelect.value);
+      if (current) actNameInput.value = current.label.toUpperCase();
+    }
+  }
+}
 const cancelEditBtn = document.getElementById("btn-cancel-edit") as HTMLButtonElement;
 const actionsListEl = document.getElementById("actions-list") as HTMLUListElement;
 const actionsCountEl = document.getElementById("actions-count") as HTMLElement;
@@ -101,6 +147,7 @@ function resetActionForm() {
   actArgsInput.value = "";
   actCommandTypeSelect.value = "app_launch";
   actColorSelect.value = "amber";
+  syncCommandTypeFields();
   cancelEditBtn.classList.add("hidden");
 }
 
@@ -151,6 +198,7 @@ function renderActions(actions: RegisteredAction[]) {
       actTargetInput.value = found.target;
       actArgsInput.value = found.args.join(" ");
       actCommandTypeSelect.value = found.command_type || "app_launch";
+      syncCommandTypeFields(found.target);
       actColorSelect.value = found.color_token ?? "amber";
       cancelEditBtn.classList.remove("hidden");
     });
@@ -267,24 +315,36 @@ tabButtons.forEach((btn) => {
 });
 
 cancelEditBtn.addEventListener("click", resetActionForm);
+actCommandTypeSelect.addEventListener("change", () => syncCommandTypeFields());
+actPresetSelect.addEventListener("change", () => {
+  const list =
+    actCommandTypeSelect.value === "media_key" ? MEDIA_PRESETS : SYSTEM_PRESETS;
+  const found = list.find((i) => i.value === actPresetSelect.value);
+  if (found) actNameInput.value = found.label.toUpperCase();
+});
 
 actionForm.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const args = actArgsInput.value
-    .trim()
-    .split(/\s+/)
-    .filter((s) => s.length > 0);
+  const cmdType = actCommandTypeSelect.value;
+  const isPreset = cmdType === "media_key" || cmdType === "system_power";
+  const target = isPreset ? actPresetSelect.value : actTargetInput.value;
+  const args = isPreset
+    ? []
+    : actArgsInput.value
+        .trim()
+        .split(/\s+/)
+        .filter((s) => s.length > 0);
   try {
     const updated = await invoke<RegisteredAction[]>("save_action", {
       input: {
         id: actIdInput.value || null,
         name: actNameInput.value,
         category: actCategoryInput.value,
-        target: actTargetInput.value,
+        target,
         args,
         color_token: actColorSelect.value,
-        command_type: actCommandTypeSelect.value,
-        confirm_required: false,
+        command_type: cmdType,
+        confirm_required: cmdType === "system_power",
       },
     });
     renderActions(updated);

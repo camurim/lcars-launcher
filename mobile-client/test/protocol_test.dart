@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lcars_mobile_client/protocol/lcars_protocol.dart';
+import 'package:lcars_mobile_client/services/http_panel_service.dart';
 
 void main() {
   group('LCARS Protocol Serialization', () {
@@ -95,6 +96,32 @@ void main() {
       expect(restored.blocks[0].actionId, 'act_open_vscode');
       expect(restored.blocks[1].source, InfoSource.localDevice);
       expect(restored.blocks[1].metricKey, 'stardate');
+    });
+
+    test('HttpPanelConfig e extractJsonPath extraem propriedades aninhadas e listas', () {
+      const cfg = HttpPanelConfig(
+        url: 'https://economia.awesomeapi.com.br/json/last/USD-BRL',
+        jsonPath: 'USDBRL.bid',
+        prefix: 'R\$ ',
+      );
+      final key = cfg.toMetricKey();
+      final parsed = HttpPanelConfig.tryParseMetricKey(key);
+      expect(parsed, isNotNull);
+      expect(parsed!.url, cfg.url);
+      expect(parsed.jsonPath, 'USDBRL.bid');
+      expect(parsed.prefix, 'R\$ ');
+
+      final sampleJson = {
+        'USDBRL': {'bid': '5.42'},
+        'items': [
+          {'name': 'Enterprise'},
+          {'name': 'Voyager'},
+        ],
+      };
+      expect(extractJsonPath(sampleJson, 'USDBRL.bid'), '5.42');
+      expect(extractJsonPath(sampleJson, 'items.1.name'), 'Voyager');
+      expect(extractJsonPath(sampleJson, 'items[0].name'), 'Enterprise');
+      expect(extractJsonPath(sampleJson, 'inexistente.campo'), isNull);
     });
   });
 }

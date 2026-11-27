@@ -6,6 +6,7 @@ import '../protocol/lcars_protocol.dart';
 import '../services/lcars_controller.dart';
 import '../services/lcars_transport.dart';
 import '../theme/lcars_theme.dart';
+import '../widgets/lcars_back_button.dart';
 import '../widgets/lcars_elbow.dart';
 import '../widgets/lcars_pill_bar.dart';
 
@@ -172,10 +173,23 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        LcarsPillBar(
-                          color: LcarsColors.amber,
-                          label: 'SUBSPACE LINK • PAREAMENTO',
-                          onTap: () => Navigator.of(context).pop(),
+                        Row(
+                          children: [
+                            LcarsBackButton(
+                              onPressed: () {
+                                unawaited(widget.controller.feedback.playTap());
+                                Navigator.of(context).pop();
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            const Expanded(
+                              child: LcarsPillBar(
+                                color: LcarsColors.amber,
+                                height: 30,
+                                label: 'SUBSPACE LINK • PAREAMENTO',
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 8),
                         Row(
@@ -412,22 +426,45 @@ class _QrScannerPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: const Text('ESCANEAR QR CODE DO DESKTOP AGENT'),
-      ),
-      body: MobileScanner(
-        onDetect: (capture) {
-          for (final barcode in capture.barcodes) {
-            final raw = barcode.rawValue;
-            if (raw == null) continue;
-            try {
-              final parsed = PairingQrPayload.parse(raw);
-              Navigator.of(context).pop(parsed);
-              return;
-            } catch (_) {}
-          }
-        },
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  const LcarsBackButton(),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: LcarsPillBar(
+                      color: LcarsColors.skyBlue,
+                      height: 30,
+                      label: 'ESCANEAR QR CODE DO DESKTOP AGENT',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: MobileScanner(
+                  onDetect: (capture) {
+                    for (final barcode in capture.barcodes) {
+                      final raw = barcode.rawValue;
+                      if (raw == null) continue;
+                      try {
+                        final parsed = PairingQrPayload.parse(raw);
+                        Navigator.of(context).pop(parsed);
+                        return;
+                      } catch (_) {}
+                    }
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
