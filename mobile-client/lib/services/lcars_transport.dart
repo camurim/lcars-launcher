@@ -57,11 +57,12 @@ class WebSocketLcarsTransport implements LcarsTransport {
     await disconnect();
     _statusController.add(LcarsConnectionStatus.connecting);
     try {
-      _channel = WebSocketChannel.connect(endpoint);
-      await _channel!.ready;
+      final channel = WebSocketChannel.connect(endpoint);
+      _channel = channel;
+      await channel.ready.timeout(const Duration(seconds: 5));
       _statusController.add(LcarsConnectionStatus.connected);
 
-      _sub = _channel!.stream.listen(
+      _sub = channel.stream.listen(
         (dynamic event) {
           if (event is String) {
             final decoded = jsonDecode(event) as Map<String, dynamic>;
@@ -76,6 +77,7 @@ class WebSocketLcarsTransport implements LcarsTransport {
         },
       );
     } catch (_) {
+      await disconnect();
       _statusController.add(LcarsConnectionStatus.standbyOffline);
       rethrow;
     }
@@ -88,10 +90,20 @@ class WebSocketLcarsTransport implements LcarsTransport {
 
   @override
   Future<void> disconnect() async {
-    await _sub?.cancel();
-    await _channel?.sink.close();
+    final sub = _sub;
+    final channel = _channel;
     _sub = null;
     _channel = null;
+    if (sub != null) {
+      try {
+        await sub.cancel().timeout(const Duration(milliseconds: 400));
+      } catch (_) {}
+    }
+    if (channel != null) {
+      try {
+        await channel.sink.close().timeout(const Duration(milliseconds: 400));
+      } catch (_) {}
+    }
     _statusController.add(LcarsConnectionStatus.disconnected);
   }
 }
