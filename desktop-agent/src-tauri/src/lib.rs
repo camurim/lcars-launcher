@@ -204,6 +204,63 @@ struct DesktopBackupDto {
     layout_backup: Option<serde_json::Value>,
 }
 
+#[derive(Deserialize)]
+struct DesktopBackupImportDto {
+    #[serde(default)]
+    schema: Option<String>,
+    #[serde(default)]
+    agent_name: Option<String>,
+    #[serde(default)]
+    actions: Option<Vec<RegisteredAction>>,
+    #[serde(default)]
+    paired_devices: Option<Vec<PairedDevice>>,
+    #[serde(default)]
+    layout_backup: Option<serde_json::Value>,
+}
+
+#[derive(Serialize)]
+struct ImportBackupResult {
+    actions: Vec<RegisteredAction>,
+    actions_count: usize,
+    devices_restored: usize,
+    layout_restored: bool,
+}
+
+fn parse_desktop_backup(raw_json: &str) -> Result<DesktopBackupImportDto, String> {
+    let trimmed = raw_json.trim_start_matches('\u{feff}').trim();
+    if trimmed.is_empty() {
+        return Err("Arquivo de backup vazio.".into());
+    }
+
+    let value: serde_json::Value =
+        serde_json::from_str(trimmed).map_err(|e| format!("JSON inválido: {e}"))?;
+
+    if !value.is_object() {
+        return Err("Formato de backup inválido: o arquivo JSON deve conter um objeto na raiz.".into());
+    }
+
+    let parsed: DesktopBackupImportDto = serde_json::from_value(value)
+        .map_err(|e| format!("Estrutura de backup inválida: {e}"))?;
+
+    if let Some(ref schema) = parsed.schema {
+        if schema != "lcars_desktop_backup_v1" {
+            return Err(format!(
+                "Versão de schema de backup não suportada: '{schema}'."
+            ));
+        }
+    }
+
+    if parsed.actions.is_none() && parsed.layout_backup.is_none() && parsed.paired_devices.is_none()
+    {
+        return Err(
+            "Formato de backup não reconhecido: o arquivo deve conter 'actions', 'layout_backup' ou 'paired_devices'."
+                .into(),
+        );
+    }
+
+    Ok(parsed)
+}
+
 #[tauri::command]
 async fn export_desktop_backup(state: State<'_, Arc<AgentState>>) -> Result<String, String> {
     let data = state.data.read().await;
@@ -220,23 +277,39 @@ async fn export_desktop_backup(state: State<'_, Arc<AgentState>>) -> Result<Stri
 async fn import_desktop_backup(
     state: State<'_, Arc<AgentState>>,
     raw_json: String,
-) -> Result<Vec<RegisteredAction>, String> {
-    let parsed: DesktopBackupDto = serde_json::from_str(&raw_json)
-        .map_err(|e| format!("Arquivo de backup inválido: {e}"))?;
+) -> Result<ImportBackupResult, String> {
+    let parsed = parse_desktop_backup(&raw_json)?;
 
-    let actions_snapshot = {
+    let (actions_snapshot, devices_restored, layout_restored) = {
         let mut data = state.data.write().await;
-        data.actions = parsed.actions;
-        if parsed.layout_backup.is_some() {
-            data.layout_backup = parsed.layout_backup;
+        if let Some(actions) = parsed.actions {
+            data.actions = actions;
+        }
+        let mut restored_devices = 0usize;
+        if let Some(devices) = parsed.paired_devices {
+            restored_devices = devices.len();
+            data.paired_devices = devices;
+        }
+        let mut restored_layout = false;
+        if let Some(layout) = parsed.layout_backup {
+            data.layout_backup = Some(layout);
+            restored_layout = true;
+        }
+        if let Some(name) = parsed.agent_name.filter(|s| !s.trim().is_empty()) {
+            data.agent_name = name;
         }
         data.capabilities_revision += 1;
         state.store.save(&data)?;
-        data.actions.clone()
+        (data.actions.clone(), restored_devices, restored_layout)
     };
 
     state.broadcast_capabilities().await;
-    Ok(actions_snapshot)
+    Ok(ImportBackupResult {
+        actions_count: actions_snapshot.len(),
+        actions: actions_snapshot,
+        devices_restored,
+        layout_restored,
+    })
 }
 
 fn tray_labels_for_system_locale() -> (&'static str, &'static str, &'static str) {
@@ -369,4 +442,79 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("erro ao iniciar LCARS Desktop Agent");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_exported_backup_format() {
+        let json = r#"{
+            "schema": "lcars_desktop_backup_v1",
+            "exported_at": "2026-11-28T00:00:00Z",
+            "actions": [
+                {
+                    "id": "act_1",
+                    "name": "Terminal",
+                    "category": "apps",
+                    "command_type": "app_launch",
+                    "target": "x-terminal-emulator",
+                    "args": [],
+                    "color_token": "peach",
+                    "confirm_required": false
+                }
+            ],
+            "layout_backup": { "layout_version": 1 }
+        }"#;
+
+        let parsed = parse_desktop_backup(json).expect("should parse exported backup");
+        assert_eq!(parsed.actions.unwrap().len(), 1);
+        assert!(parsed.layout_backup.is_some());
+    }
+
+    #[test]
+    fn parses_agent_state_json_format() {
+        let json = r#"{
+            "agent_id": "c9357700-ad21-414a-8285-e26958c1b082",
+            "agent_name": "USS-WORKSTATION-01",
+            "capabilities_revision": 5,
+            "actions": [
+                {
+                    "id": "act_open_terminal",
+                    "name": "TERMINAL",
+                    "category": "apps",
+                    "command_type": "app_launch",
+                    "target": "x-terminal-emulator",
+                    "args": [],
+                    "color_token": "peach",
+                    "confirm_required": false
+                }
+            ],
+            "paired_devices": [
+                {
+                    "device_id": "38c3db92-2fd7-4d89-b20b-8060a7837e32",
+                    "device_name": "LCARS Tablet Console",
+                    "platform": "android",
+                    "token": "lcars_tok_d5612df661d2468d89c4b1191a0160e4",
+                    "paired_at": "2026-11-27T12:39:18.870521127+00:00"
+                }
+            ],
+            "layout_backup": { "layout_version": 21, "pages": [] }
+        }"#;
+
+        let parsed = parse_desktop_backup(json).expect("should parse agent_state.json");
+        assert_eq!(parsed.agent_name.as_deref(), Some("USS-WORKSTATION-01"));
+        assert_eq!(parsed.actions.unwrap().len(), 1);
+        assert_eq!(parsed.paired_devices.unwrap().len(), 1);
+        assert!(parsed.layout_backup.is_some());
+    }
+
+    #[test]
+    fn rejects_invalid_or_unrelated_json() {
+        assert!(parse_desktop_backup("").is_err());
+        assert!(parse_desktop_backup("{not json").is_err());
+        assert!(parse_desktop_backup("{}").is_err());
+        assert!(parse_desktop_backup(r#"{"schema":"unknown_v99","actions":[]}"#).is_err());
+    }
 }

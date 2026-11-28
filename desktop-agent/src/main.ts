@@ -41,6 +41,13 @@ interface PairedDevice {
   paired_at: string;
 }
 
+interface ImportBackupResult {
+  actions: RegisteredAction[];
+  actions_count: number;
+  devices_restored: number;
+  layout_restored: boolean;
+}
+
 type TabKey = "actions" | "pairing" | "devices";
 
 let currentActions: RegisteredAction[] = [];
@@ -391,8 +398,43 @@ adbReverseBtn.addEventListener("click", async () => {
 
 refreshDevicesBtn.addEventListener("click", () => void loadDevices());
 
+function showBackupStatus(kind: "info" | "success" | "error", message: string) {
+  backupStatusEl.classList.remove(
+    "hidden",
+    "border-emerald-500/40",
+    "bg-emerald-500/10",
+    "text-emerald-200",
+    "border-red-500/40",
+    "bg-red-500/10",
+    "text-red-200",
+    "border-cyan-500/40",
+    "bg-cyan-500/10",
+    "text-cyan-200",
+  );
+  if (kind === "success") {
+    backupStatusEl.classList.add("border-emerald-500/40", "bg-emerald-500/10", "text-emerald-200");
+  } else if (kind === "error") {
+    backupStatusEl.classList.add("border-red-500/40", "bg-red-500/10", "text-red-200");
+  } else {
+    backupStatusEl.classList.add("border-cyan-500/40", "bg-cyan-500/10", "text-cyan-200");
+  }
+  backupStatusEl.textContent = message;
+  backupStatusEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function readFileAsText(file: File): Promise<string> {
+  if (typeof file.text === "function") {
+    return file.text();
+  }
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(reader.error ?? new Error("Falha ao ler arquivo."));
+    reader.readAsText(file);
+  });
+}
+
 exportBackupBtn.addEventListener("click", async () => {
-  backupStatusEl.classList.remove("hidden", "text-emerald-300", "text-red-300");
   try {
     const json = await invoke<string>("export_desktop_backup");
     const blob = new Blob([json], { type: "application/json" });
@@ -400,34 +442,50 @@ exportBackupBtn.addEventListener("click", async () => {
     const a = document.createElement("a");
     a.href = url;
     a.download = "scifi-deck-agent-backup.json";
+    document.body.appendChild(a);
     a.click();
+    a.remove();
     URL.revokeObjectURL(url);
-    backupStatusEl.classList.add("text-emerald-300");
-    backupStatusEl.textContent = t("backupExportedOk");
+    showBackupStatus("success", t("backupExportedOk"));
   } catch (err) {
-    backupStatusEl.classList.add("text-red-300");
-    backupStatusEl.textContent = String(err);
+    console.error("Erro ao exportar backup:", err);
+    showBackupStatus("error", String(err));
   }
 });
 
-importBackupBtn.addEventListener("click", () => importBackupInput.click());
+importBackupBtn.addEventListener("click", () => {
+  importBackupInput.value = "";
+  importBackupInput.click();
+});
 
 importBackupInput.addEventListener("change", async () => {
   const file = importBackupInput.files?.[0];
-  importBackupInput.value = "";
   if (!file) return;
-  backupStatusEl.classList.remove("hidden", "text-emerald-300", "text-red-300");
+  showBackupStatus("info", t("backupImporting"));
   try {
-    const rawJson = await file.text();
-    const updated = await invoke<RegisteredAction[]>("import_desktop_backup", {
+    const rawJson = await readFileAsText(file);
+    if (!rawJson.trim()) {
+      showBackupStatus("error", t("backupImportError", { err: t("backupEmptyFile") }));
+      return;
+    }
+    const result = await invoke<ImportBackupResult>("import_desktop_backup", {
       rawJson,
     });
-    renderActions(updated);
-    backupStatusEl.classList.add("text-emerald-300");
-    backupStatusEl.textContent = t("backupImportedOk");
+    renderActions(result.actions);
+    void loadDevices();
+    showBackupStatus(
+      "success",
+      t("backupImportedSummary", {
+        actions: result.actions_count,
+        devices: result.devices_restored,
+        layout: result.layout_restored ? t("backupLayoutIncluded") : "",
+      }),
+    );
   } catch (err) {
-    backupStatusEl.classList.add("text-red-300");
-    backupStatusEl.textContent = String(err);
+    console.error("Erro ao importar backup:", err);
+    showBackupStatus("error", t("backupImportError", { err: String(err) }));
+  } finally {
+    importBackupInput.value = "";
   }
 });
 

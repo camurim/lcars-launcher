@@ -205,11 +205,11 @@
               >
                 Importar Backup
               </button>
-              <input id="input-import-backup" type="file" accept=".json,application/json" class="hidden" />
+              <input id="input-import-backup" type="file" accept=".json,application/json" class="sr-only" />
               <span id="actions-count" class="text-xs text-zinc-400">0</span>
             </div>
           </div>
-          <p id="backup-status" class="mb-2 hidden text-xs"></p>
+          <div id="backup-status" role="status" aria-live="polite" class="mb-3 hidden rounded-xl border px-3 py-2 text-xs font-medium"></div>
           <ul id="actions-list" class="flex flex-col gap-2"></ul>
         </div>
       </section>

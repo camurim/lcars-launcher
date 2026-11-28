@@ -53,7 +53,12 @@ export const TRANSLATIONS: Record<SupportedLang, Record<string, string>> = {
     btnExportBackup: "Export Backup",
     btnImportBackup: "Import Backup",
     backupExportedOk: "Backup JSON downloaded successfully.",
+    backupImporting: "Reading and validating backup file...",
     backupImportedOk: "Backup restored and synced with connected devices!",
+    backupImportedSummary: "Backup restored ({actions} actions, {devices} paired devices{layout}).",
+    backupLayoutIncluded: ", layout restored",
+    backupImportError: "Failed to restore backup: {err}",
+    backupEmptyFile: "The selected file is empty.",
   },
   pt: {
     subtitle: "Daemon WebSocket + mDNS • Protocolo v1.0",
@@ -105,7 +110,12 @@ export const TRANSLATIONS: Record<SupportedLang, Record<string, string>> = {
     btnExportBackup: "Exportar Backup",
     btnImportBackup: "Importar Backup",
     backupExportedOk: "Arquivo JSON de backup baixado com sucesso.",
+    backupImporting: "Lendo e validando arquivo de backup...",
     backupImportedOk: "Backup restaurado e sincronizado com os dispositivos!",
+    backupImportedSummary: "Backup restaurado ({actions} ações, {devices} dispositivos pareados{layout}).",
+    backupLayoutIncluded: ", layout restaurado",
+    backupImportError: "Falha ao restaurar backup: {err}",
+    backupEmptyFile: "O arquivo selecionado está vazio.",
   },
   es: {
     subtitle: "Daemon WebSocket + mDNS • Protocolo v1.0",
@@ -157,7 +167,12 @@ export const TRANSLATIONS: Record<SupportedLang, Record<string, string>> = {
     btnExportBackup: "Exportar Respaldo",
     btnImportBackup: "Importar Respaldo",
     backupExportedOk: "Archivo JSON de respaldo descargado con éxito.",
+    backupImporting: "Leyendo y validando archivo de respaldo...",
     backupImportedOk: "¡Respaldo restaurado y sincronizado con los dispositivos!",
+    backupImportedSummary: "Respaldo restaurado ({actions} acciones, {devices} dispositivos emparejados{layout}).",
+    backupLayoutIncluded: ", diseño restaurado",
+    backupImportError: "Error al restaurar respaldo: {err}",
+    backupEmptyFile: "El archivo seleccionado está vacío.",
   },
 };
 

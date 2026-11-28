@@ -126,6 +126,28 @@ make build-all
 ./scripts/build-desktop.sh --check-only
 ```
 
+### Instalação no Linux (Usuário ou Sistema)
+O script `scripts/install-desktop.sh` copia o binário release (compilando-o automaticamente se necessário), instala os ícones no tema `hicolor`, cria o atalho `.desktop` no menu de aplicativos e oferece suporte opcional a inicialização automática (`autostart`):
+
+```bash
+# Modo interativo (permite escolher entre instalação de usuário ou de sistema)
+./scripts/install-desktop.sh
+# ou via Makefile:
+make install-desktop
+
+# Instalação ao nível do usuário (~/.local, sem sudo)
+./scripts/install-desktop.sh --user
+./scripts/install-desktop.sh --user --autostart
+
+# Instalação ao nível do sistema (/usr/local, solicita sudo apenas na cópia)
+./scripts/install-desktop.sh --system
+./scripts/install-desktop.sh --system --autostart
+
+# Desinstalação
+./scripts/install-desktop.sh --uninstall --user
+./scripts/install-desktop.sh --uninstall --system
+```
+
 ### Windows (PowerShell)
 ```powershell
 # Build completo em sequência (Mobile -> Desktop)
