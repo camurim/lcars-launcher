@@ -1,7 +1,7 @@
 use crate::actions::execute_registered_action;
 use crate::protocol::{
-    CapabilitiesSyncPayload, Envelope, ExecuteActionPayload, MessageType, PairConfirmPayload,
-    PairRequestPayload,
+    CapabilitiesSyncPayload, Envelope, ExecuteActionPayload, HttpProxyRequestPayload,
+    HttpProxyResponsePayload, MessageType, PairConfirmPayload, PairRequestPayload,
 };
 use crate::storage::{JsonStore, PairedDevice, PersistedData};
 use crate::telemetry::TelemetryCollector;
@@ -282,9 +282,156 @@ pub async fn route_message(
             }
         }
 
+        MessageType::HttpProxyRequest => {
+            let Some(tok) = authed_token.clone() else {
+                let denied = HttpProxyResponsePayload {
+                    ok: false,
+                    status_code: Some(401),
+                    body: None,
+                    error: Some("ERR_UNAUTHORIZED: Token inválido ou revogado".into()),
+                };
+                return RouteOutcome {
+                    responses: vec![Envelope::new(
+                        MessageType::HttpProxyResponse,
+                        env.req_id,
+                        None,
+                        serde_json::to_value(denied).unwrap_or_default(),
+                    )],
+                    authenticated_token: None,
+                };
+            };
+
+            let result = match serde_json::from_value::<HttpProxyRequestPayload>(env.payload) {
+                Ok(req) => {
+                    let url = req.url.trim().to_string();
+                    tokio::task::spawn_blocking(move || execute_http_proxy(&url))
+                        .await
+                        .unwrap_or_else(|_| HttpProxyResponsePayload {
+                            ok: false,
+                            status_code: None,
+                            body: None,
+                            error: Some("Falha interna no proxy HTTP do PC".into()),
+                        })
+                }
+                Err(e) => HttpProxyResponsePayload {
+                    ok: false,
+                    status_code: Some(400),
+                    body: None,
+                    error: Some(format!("Payload HTTP_PROXY_REQUEST inválido: {e}")),
+                },
+            };
+
+            let resp = Envelope::new(
+                MessageType::HttpProxyResponse,
+                env.req_id,
+                Some(tok.clone()),
+                serde_json::to_value(result).unwrap_or_default(),
+            );
+            RouteOutcome {
+                responses: vec![resp],
+                authenticated_token: Some(tok),
+            }
+        }
+
         _ => RouteOutcome {
             responses: vec![],
             authenticated_token: authed_token,
+        },
+    }
+}
+
+const MAX_HTTP_PROXY_BODY_BYTES: usize = 2 * 1024 * 1024;
+
+fn execute_http_proxy(url: &str) -> HttpProxyResponsePayload {
+    let lower = url.to_ascii_lowercase();
+    if !(lower.starts_with("http://") || lower.starts_with("https://")) {
+        return HttpProxyResponsePayload {
+            ok: false,
+            status_code: Some(400),
+            body: None,
+            error: Some("URL inválida (use http:// ou https://)".into()),
+        };
+    }
+
+    let output = std::process::Command::new("curl")
+        .args([
+            "-sS",
+            "-L",
+            "--connect-timeout",
+            "8",
+            "--max-time",
+            "12",
+            "-H",
+            "Accept: application/json",
+            "-A",
+            "SciFiDeckAgent/1.0",
+            "-w",
+            "\n%{http_code}",
+            "--",
+            url,
+        ])
+        .output();
+
+    let output = match output {
+        Ok(o) => o,
+        Err(e) => {
+            return HttpProxyResponsePayload {
+                ok: false,
+                status_code: None,
+                body: None,
+                error: Some(format!("Não foi possível executar 'curl' no PC: {e}")),
+            };
+        }
+    };
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return HttpProxyResponsePayload {
+            ok: false,
+            status_code: None,
+            body: None,
+            error: Some(if stderr.is_empty() {
+                format!("Falha ao consultar URL pelo PC (código {:?})", output.status.code())
+            } else {
+                stderr
+            }),
+        };
+    }
+
+    if output.stdout.len() > MAX_HTTP_PROXY_BODY_BYTES {
+        return HttpProxyResponsePayload {
+            ok: false,
+            status_code: Some(413),
+            body: None,
+            error: Some("Resposta HTTP excedeu o limite máximo (2 MB).".into()),
+        };
+    }
+
+    let raw = String::from_utf8_lossy(&output.stdout);
+    let (body_str, code_str) = match raw.rsplit_once('\n') {
+        Some((b, c)) => (b, c.trim()),
+        None => ("", raw.trim()),
+    };
+
+    let status_code = code_str.parse::<u16>().ok();
+    match status_code {
+        Some(code) if (200..300).contains(&code) => HttpProxyResponsePayload {
+            ok: true,
+            status_code: Some(code),
+            body: Some(body_str.to_string()),
+            error: None,
+        },
+        Some(code) => HttpProxyResponsePayload {
+            ok: false,
+            status_code: Some(code),
+            body: None,
+            error: Some(format!("HTTP {code}")),
+        },
+        None => HttpProxyResponsePayload {
+            ok: false,
+            status_code: None,
+            body: None,
+            error: Some("Resposta HTTP inválida recebida pelo proxy do PC.".into()),
         },
     }
 }
@@ -547,5 +694,13 @@ mod tests {
 
         server_handle.abort();
         let _ = std::fs::remove_file(tmp_path);
+    }
+
+    #[test]
+    fn http_proxy_rejects_non_http_schemes() {
+        let res = execute_http_proxy("file:///etc/passwd");
+        assert!(!res.ok);
+        assert_eq!(res.status_code, Some(400));
+        assert!(res.error.is_some());
     }
 }

@@ -185,13 +185,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fieldHttpUrl => 'REST URL (GET JSON)';
 
   @override
-  String get fieldHttpPath => 'JSON PROPERTY PATH';
+  String get fieldHttpPath => 'JSON PATH OR TEMPLATE';
 
   @override
   String get fieldHttpPrefix => 'PREFIX';
 
   @override
   String get fieldHttpSuffix => 'SUFFIX';
+
+  @override
+  String get fieldHttpRefresh => 'REFRESH INTERVAL';
+
+  @override
+  String get httpRefreshManual => 'Manual (tap to refresh)';
+
+  @override
+  String get fieldHttpUsePcProxy => 'Use PC internet (USB proxy)';
 
   @override
   String get testRequestButton => 'TEST REQUEST';
@@ -333,4 +342,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupPulledPc => 'Requesting backup from PC...';
+
+  @override
+  String get btnAddPage => '+ PAGE';
+
+  @override
+  String get dialogNewPageTitle => 'NEW DECK PAGE';
+
+  @override
+  String get dialogEditPageTitle => 'EDIT DECK PAGE';
+
+  @override
+  String get fieldPageTitle => 'PAGE NAME';
+
+  @override
+  String get btnSavePage => 'SAVE PAGE';
 }

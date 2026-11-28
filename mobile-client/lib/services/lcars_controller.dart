@@ -157,6 +157,8 @@ class LcarsController extends ChangeNotifier {
   String? confirmedActionId;
   final Map<String, String> commandOutputs = {};
   final Map<String, String> httpOutputs = {};
+  final Map<String, DateTime> _httpLastFetch = {};
+  final Map<String, Completer<String>> _pendingHttpProxy = {};
   final Map<String, List<double>> _metricHistory = {};
   static const int _maxHistorySamples = 30;
 
@@ -324,7 +326,7 @@ class LcarsController extends ChangeNotifier {
       }
     });
 
-    _httpPollTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+    _httpPollTimer = Timer.periodic(const Duration(seconds: 15), (_) {
       unawaited(refreshHttpPanels());
     });
     unawaited(refreshHttpPanels());
@@ -577,14 +579,63 @@ class LcarsController extends ChangeNotifier {
     }
   }
 
-  /// Atualiza todos os painéis HTTP/REST (`http:{...}`) de forma independente do PC.
-  Future<void> refreshHttpPanels() async {
+  /// Atualiza os painéis HTTP/REST (`http:{...}`) respeitando a taxa individual de cada bloco.
+  Future<void> refreshHttpPanels({bool force = false}) async {
+    final now = DateTime.now();
     for (final blk in layout.allBlocks) {
-      if (blk.blockType == LcarsBlockType.info &&
-          (blk.metricKey?.startsWith('http:') ?? false)) {
-        await refreshSingleHttpPanel(blk, silent: true);
+      if (blk.blockType != LcarsBlockType.info ||
+          !(blk.metricKey?.startsWith('http:') ?? false)) {
+        continue;
       }
+      final cfg = HttpPanelConfig.tryParseMetricKey(blk.metricKey);
+      if (cfg == null) continue;
+      if (!force) {
+        if (cfg.refreshSeconds == 0) continue; // Atualização manual apenas ao tocar
+        final last = _httpLastFetch[blk.id];
+        if (last != null &&
+            now.difference(last).inSeconds < cfg.refreshSeconds) {
+          continue;
+        }
+      }
+      await refreshSingleHttpPanel(blk, silent: true);
     }
+  }
+
+  /// Executa uma requisição HTTP GET usando a internet do PC conectado (túnel WebSocket / USB).
+  Future<String> fetchUrlViaPc(String url) async {
+    if (!isPcOnline) {
+      throw StateError('PC offline: proxy HTTP indisponível.');
+    }
+    final reqId = _uuid.v4();
+    final completer = Completer<String>();
+    _pendingHttpProxy[reqId] = completer;
+
+    try {
+      await transport.send(
+        ProtocolEnvelope(
+          type: 'HTTP_PROXY_REQUEST',
+          timestamp: DateTime.now(),
+          reqId: reqId,
+          token: _authToken,
+          payload: {'url': url},
+        ),
+      );
+      return await completer.future.timeout(
+        const Duration(seconds: 15),
+        onTimeout: () => throw TimeoutException('Timeout no proxy HTTP do PC'),
+      );
+    } finally {
+      _pendingHttpProxy.remove(reqId);
+    }
+  }
+
+  /// Consulta e formata um painel HTTP, usando proxy via PC quando configurado ou como fallback se o tablet estiver sem rede.
+  Future<String> fetchHttpPanelValue(HttpPanelConfig cfg) {
+    return httpPanelService.fetchValue(
+      cfg,
+      proxyFetch: isPcOnline ? fetchUrlViaPc : null,
+      preferProxy: cfg.usePcProxy,
+    );
   }
 
   Future<void> refreshSingleHttpPanel(
@@ -593,13 +644,14 @@ class LcarsController extends ChangeNotifier {
   }) async {
     final cfg = HttpPanelConfig.tryParseMetricKey(blk.metricKey);
     if (cfg == null) return;
+    _httpLastFetch[blk.id] = DateTime.now();
     if (!silent) {
       unawaited(feedback.playTap());
       httpOutputs[blk.id] = 'CARREGANDO...';
       notifyListeners();
     }
     try {
-      final value = await httpPanelService.fetchValue(cfg);
+      final value = await fetchHttpPanelValue(cfg);
       httpOutputs[blk.id] = value;
       if (!silent) {
         statusLog = 'HTTP [${blk.label}]: $value';
@@ -700,6 +752,8 @@ class LcarsController extends ChangeNotifier {
   }
 
   Future<void> removeBlock(String blockId) async {
+    _httpLastFetch.remove(blockId);
+    httpOutputs.remove(blockId);
     final updated = activePage.blocks.where((b) => b.id != blockId).toList();
     await _commitActivePageBlocks(updated);
   }
@@ -914,6 +968,14 @@ class LcarsController extends ChangeNotifier {
           statusLog = 'SINCRONIZADO: ${availableActions.length} AÇÕES DO PC';
         }
         unawaited(refreshCommandPanels());
+        // Se algum painel HTTP falhou por falta de Wi-Fi antes do PC conectar, re-tenta via proxy do PC
+        for (final blk in layout.allBlocks) {
+          if (blk.blockType == LcarsBlockType.info &&
+              (blk.metricKey?.startsWith('http:') ?? false) &&
+              httpOutputs[blk.id] == 'ERRO HTTP') {
+            unawaited(refreshSingleHttpPanel(blk, silent: true));
+          }
+        }
         notifyListeners();
       case 'TELEMETRY':
         telemetry = TelemetryData.fromPayload(env.payload);
@@ -970,6 +1032,23 @@ class LcarsController extends ChangeNotifier {
           unawaited(feedback.playError());
         }
         notifyListeners();
+      case 'HTTP_PROXY_RESPONSE':
+        final reqId = env.reqId;
+        if (reqId != null) {
+          final completer = _pendingHttpProxy.remove(reqId);
+          if (completer != null && !completer.isCompleted) {
+            if (env.payload['ok'] == true) {
+              completer.complete(env.payload['body'] as String? ?? '');
+            } else {
+              completer.completeError(
+                Exception(
+                  env.payload['error'] as String? ??
+                      'Falha no proxy HTTP do PC',
+                ),
+              );
+            }
+          }
+        }
     }
   }
 

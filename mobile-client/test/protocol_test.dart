@@ -138,5 +138,85 @@ void main() {
       expect(extractJsonPath(sampleJson, 'items[0].name'), 'Enterprise');
       expect(extractJsonPath(sampleJson, 'inexistente.campo'), isNull);
     });
+
+    test('formatJsonValue suporta caminho simples e templates {{...}}', () {
+      final bibleJson = {
+        'random_verse': {
+          'book': 'Salmos',
+          'chapter': 23,
+          'verse': 1,
+          'text': 'O SENHOR é o meu pastor; nada me faltará.\n',
+        },
+        'items': [
+          {'name': 'Enterprise'},
+        ],
+      };
+
+      expect(
+        formatJsonValue(
+          bibleJson,
+          '{{random_verse.book}} {{random_verse.chapter}}:{{random_verse.verse}} - {{random_verse.text}}',
+        ),
+        'Salmos 23:1 - O SENHOR é o meu pastor; nada me faltará.',
+      );
+
+      expect(
+        formatJsonValue(bibleJson, 'Nave: {{ items[0].name }}'),
+        'Nave: Enterprise',
+      );
+
+      expect(formatJsonValue(bibleJson, 'random_verse.book'), 'Salmos');
+      expect(
+        formatJsonValue(bibleJson, '{{nao.existe}} - {{tampouco}}'),
+        isNull,
+      );
+    });
+
+    test('HttpPanelConfig serializa e restaura refreshSeconds personalizado e manual', () {
+      const hourly = HttpPanelConfig(
+        url: 'https://bible-api.com/data/blivre/random',
+        jsonPath: '{{random_verse.book}} {{random_verse.chapter}}:{{random_verse.verse}}',
+        refreshSeconds: 3600,
+      );
+      final parsedHourly = HttpPanelConfig.tryParseMetricKey(hourly.toMetricKey());
+      expect(parsedHourly, isNotNull);
+      expect(parsedHourly!.refreshSeconds, 3600);
+
+      const manual = HttpPanelConfig(
+        url: 'https://bible-api.com/data/blivre/random',
+        jsonPath: 'random_verse.text',
+        refreshSeconds: 0,
+      );
+      final parsedManual = HttpPanelConfig.tryParseMetricKey(manual.toMetricKey());
+      expect(parsedManual, isNotNull);
+      expect(parsedManual!.refreshSeconds, 0);
+
+      // Compatibilidade com blocos antigos sem refresh_seconds
+      final legacy = HttpPanelConfig.tryParseMetricKey(
+        'http:{"url":"https://example.com","path":"a.b"}',
+      );
+      expect(legacy, isNotNull);
+      expect(legacy!.refreshSeconds, HttpPanelConfig.defaultRefreshSeconds);
+      expect(legacy.usePcProxy, isFalse);
+
+      // Proxy via PC (USB)
+      const proxied = HttpPanelConfig(
+        url: 'https://economia.awesomeapi.com.br/json/last/USD-BRL',
+        jsonPath: 'USDBRL.bid',
+        prefix: 'R\$ ',
+        usePcProxy: true,
+      );
+      final parsedProxied =
+          HttpPanelConfig.tryParseMetricKey(proxied.toMetricKey());
+      expect(parsedProxied, isNotNull);
+      expect(parsedProxied!.usePcProxy, isTrue);
+
+      final service = HttpPanelService();
+      final formatted = service.formatResponseBody(
+        '{"USDBRL":{"bid":"5.42"}}',
+        proxied,
+      );
+      expect(formatted, 'R\$ 5.42');
+    });
   });
 }

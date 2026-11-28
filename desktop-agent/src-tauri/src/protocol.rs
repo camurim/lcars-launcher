@@ -13,6 +13,8 @@ pub enum MessageType {
     ExecuteAction,
     ActionResult,
     LayoutSync,
+    HttpProxyRequest,
+    HttpProxyResponse,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -173,4 +175,20 @@ pub struct ActionResultPayload {
     pub duration_ms: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HttpProxyRequestPayload {
+    pub url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HttpProxyResponsePayload {
+    pub ok: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status_code: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub body: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
 }

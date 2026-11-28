@@ -439,7 +439,7 @@ abstract class AppLocalizations {
   /// No description provided for @fieldHttpPath.
   ///
   /// In en, this message translates to:
-  /// **'JSON PROPERTY PATH'**
+  /// **'JSON PATH OR TEMPLATE'**
   String get fieldHttpPath;
 
   /// No description provided for @fieldHttpPrefix.
@@ -453,6 +453,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'SUFFIX'**
   String get fieldHttpSuffix;
+
+  /// No description provided for @fieldHttpRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'REFRESH INTERVAL'**
+  String get fieldHttpRefresh;
+
+  /// No description provided for @httpRefreshManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual (tap to refresh)'**
+  String get httpRefreshManual;
+
+  /// No description provided for @fieldHttpUsePcProxy.
+  ///
+  /// In en, this message translates to:
+  /// **'Use PC internet (USB proxy)'**
+  String get fieldHttpUsePcProxy;
 
   /// No description provided for @testRequestButton.
   ///
@@ -735,6 +753,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Requesting backup from PC...'**
   String get backupPulledPc;
+
+  /// No description provided for @btnAddPage.
+  ///
+  /// In en, this message translates to:
+  /// **'+ PAGE'**
+  String get btnAddPage;
+
+  /// No description provided for @dialogNewPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'NEW DECK PAGE'**
+  String get dialogNewPageTitle;
+
+  /// No description provided for @dialogEditPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'EDIT DECK PAGE'**
+  String get dialogEditPageTitle;
+
+  /// No description provided for @fieldPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'PAGE NAME'**
+  String get fieldPageTitle;
+
+  /// No description provided for @btnSavePage.
+  ///
+  /// In en, this message translates to:
+  /// **'SAVE PAGE'**
+  String get btnSavePage;
 }
 
 class _AppLocalizationsDelegate

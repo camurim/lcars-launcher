@@ -895,6 +895,8 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
   late TextEditingController _httpPathCtrl;
   late TextEditingController _httpPrefixCtrl;
   late TextEditingController _httpSuffixCtrl;
+  int _httpRefreshSeconds = HttpPanelConfig.defaultRefreshSeconds;
+  bool _httpUsePcProxy = false;
   String? _httpPreview;
   bool _testingHttp = false;
   String? _selectedActionId;
@@ -939,6 +941,9 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
     _httpPathCtrl = TextEditingController(text: existingHttp?.jsonPath ?? '');
     _httpPrefixCtrl = TextEditingController(text: existingHttp?.prefix ?? '');
     _httpSuffixCtrl = TextEditingController(text: existingHttp?.suffix ?? '');
+    _httpRefreshSeconds =
+        existingHttp?.refreshSeconds ?? HttpPanelConfig.defaultRefreshSeconds;
+    _httpUsePcProxy = existingHttp?.usePcProxy ?? false;
     _selectedActionId = (e != null && !e.isLocalAction)
         ? e.actionId
         : (widget.controller.availableActions.isNotEmpty
@@ -984,19 +989,29 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
     super.dispose();
   }
 
+  String _formatRefreshOption(int seconds, AppLocalizations l10n) {
+    if (seconds <= 0) return l10n.httpRefreshManual;
+    if (seconds % 86400 == 0) return '${seconds ~/ 86400} d';
+    if (seconds % 3600 == 0) return '${seconds ~/ 3600} h';
+    if (seconds % 60 == 0) return '${seconds ~/ 60} min';
+    return '$seconds s';
+  }
+
   Future<void> _testHttpRequest() async {
     final cfg = HttpPanelConfig(
       url: _httpUrlCtrl.text.trim(),
       jsonPath: _httpPathCtrl.text.trim(),
       prefix: _httpPrefixCtrl.text,
       suffix: _httpSuffixCtrl.text,
+      refreshSeconds: _httpRefreshSeconds,
+      usePcProxy: _httpUsePcProxy,
     );
     setState(() {
       _testingHttp = true;
       _httpPreview = 'CONSULTANDO...';
     });
     try {
-      final res = await widget.controller.httpPanelService.fetchValue(cfg);
+      final res = await widget.controller.fetchHttpPanelValue(cfg);
       if (mounted) setState(() => _httpPreview = 'RESULTADO: $res');
     } catch (err) {
       if (mounted) setState(() => _httpPreview = 'ERRO: $err');
@@ -1192,11 +1207,13 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
               const SizedBox(height: 10),
               TextField(
                 controller: _httpPathCtrl,
+                minLines: 1,
+                maxLines: 3,
                 style:
                     const TextStyle(color: LcarsColors.textLight, fontSize: 14),
                 decoration: InputDecoration(
                   labelText: l10n.fieldHttpPath,
-                  hintText: 'USDBRL.bid',
+                  hintText: 'USDBRL.bid  /  {{a.b}} - {{a.c}}',
                 ),
               ),
               const SizedBox(height: 10),
@@ -1228,6 +1245,47 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
                 ],
               ),
               const SizedBox(height: 10),
+              DropdownButtonFormField<int>(
+                initialValue: _httpRefreshSeconds,
+                dropdownColor: const Color(0xFF1A1A22),
+                style:
+                    const TextStyle(color: LcarsColors.textLight, fontSize: 14),
+                decoration: InputDecoration(
+                  labelText: l10n.fieldHttpRefresh,
+                ),
+                items: {
+                  ...HttpPanelConfig.refreshPresetsSeconds,
+                  _httpRefreshSeconds,
+                }
+                    .toList()
+                    .map(
+                      (sec) => DropdownMenuItem<int>(
+                        value: sec,
+                        child: Text(_formatRefreshOption(sec, l10n)),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (v) {
+                  if (v != null) setState(() => _httpRefreshSeconds = v);
+                },
+              ),
+              const SizedBox(height: 6),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                activeThumbColor: LcarsColors.amber,
+                title: Text(
+                  l10n.fieldHttpUsePcProxy,
+                  style: const TextStyle(
+                    color: LcarsColors.textLight,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                value: _httpUsePcProxy,
+                onChanged: (v) => setState(() => _httpUsePcProxy = v),
+              ),
+              const SizedBox(height: 6),
               OutlinedButton(
                 style: OutlinedButton.styleFrom(
                   foregroundColor: LcarsColors.skyBlue,
@@ -1510,6 +1568,8 @@ class _BlueprintBlockDialogState extends State<_BlueprintBlockDialog> {
                     jsonPath: _httpPathCtrl.text.trim(),
                     prefix: _httpPrefixCtrl.text,
                     suffix: _httpSuffixCtrl.text,
+                    refreshSeconds: _httpRefreshSeconds,
+                    usePcProxy: _httpUsePcProxy,
                   ).toMetricKey()
                 : (_kind == _EditorBlockKind.info ? _selectedMetricKey : null);
 

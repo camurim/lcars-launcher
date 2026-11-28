@@ -187,13 +187,22 @@ class AppLocalizationsPt extends AppLocalizations {
   String get fieldHttpUrl => 'URL REST (GET JSON)';
 
   @override
-  String get fieldHttpPath => 'CAMINHO DA PROPRIEDADE JSON';
+  String get fieldHttpPath => 'CAMINHO JSON OU TEMPLATE';
 
   @override
   String get fieldHttpPrefix => 'PREFIXO';
 
   @override
   String get fieldHttpSuffix => 'SUFIXO';
+
+  @override
+  String get fieldHttpRefresh => 'TAXA DE ATUALIZAÇÃO';
+
+  @override
+  String get httpRefreshManual => 'Manual (apenas ao tocar)';
+
+  @override
+  String get fieldHttpUsePcProxy => 'Usar internet do PC (Proxy USB)';
 
   @override
   String get testRequestButton => 'TESTAR REQUISIÇÃO';
@@ -336,4 +345,19 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get backupPulledPc => 'Solicitando backup salvo no PC...';
+
+  @override
+  String get btnAddPage => '+ PÁGINA';
+
+  @override
+  String get dialogNewPageTitle => 'NOVA PÁGINA';
+
+  @override
+  String get dialogEditPageTitle => 'EDITAR PÁGINA';
+
+  @override
+  String get fieldPageTitle => 'NOME DA PÁGINA';
+
+  @override
+  String get btnSavePage => 'SALVAR PÁGINA';
 }

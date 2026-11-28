@@ -189,19 +189,26 @@ class LcarsInfoPanel extends StatelessWidget {
       );
     }
 
+    final isLongText = value.length > 48;
+    final isMediumText = value.length > 14;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.end,
+      mainAxisAlignment:
+          isLongText ? MainAxisAlignment.center : MainAxisAlignment.end,
       children: [
-        Text(
-          value,
-          maxLines: value.length > 14 ? 2 : 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: LcarsColors.textLight,
-            fontSize: value.length > 14 ? 15 : 22,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.2,
+        Flexible(
+          child: Text(
+            value,
+            maxLines: isLongText ? 6 : (isMediumText ? 2 : 1),
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: LcarsColors.textLight,
+              fontSize: isLongText ? 12 : (isMediumText ? 15 : 22),
+              fontWeight: isLongText ? FontWeight.w600 : FontWeight.w800,
+              letterSpacing: isLongText ? 0.3 : 1.2,
+              height: isLongText ? 1.2 : null,
+            ),
           ),
         ),
         if (displayFormat != 'value' && progress != null) ...[
